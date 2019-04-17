@@ -1,0 +1,987 @@
+<!DOCTYPE html>
+
+
+
+  
+
+
+<html class="theme-next gemini use-motion" lang="en">
+<head><meta name="generator" content="Hexo 3.8.0">
+  <meta charset="UTF-8">
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+
+
+
+
+
+
+
+
+
+
+
+
+<meta http-equiv="Cache-Control" content="no-transform">
+<meta http-equiv="Cache-Control" content="no-siteapp">
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<link href="/lib/font-awesome/css/font-awesome.min.css?v=4.6.2" rel="stylesheet" type="text/css">
+
+<link href="/css/main.css?v=6.1.0" rel="stylesheet" type="text/css">
+
+
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png?v=6.1.0">
+
+
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png?v=6.1.0">
+
+
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png?v=6.1.0">
+
+
+  <link rel="mask-icon" href="/images/logo.svg?v=6.1.0" color="#222">
+
+
+
+
+
+
+
+
+
+<script type="text/javascript" id="hexo.configurations">
+  var NexT = window.NexT || {};
+  var CONFIG = {
+    root: '/',
+    scheme: 'Gemini',
+    version: '6.1.0',
+    sidebar: {"position":"left","display":"post","offset":12,"b2t":false,"scrollpercent":false,"onmobile":false},
+    fancybox: false,
+    fastclick: false,
+    lazyload: false,
+    tabs: true,
+    motion: {"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},
+    algolia: {
+      applicationID: '',
+      apiKey: '',
+      indexName: '',
+      hits: {"per_page":10},
+      labels: {"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}
+    }
+  };
+</script>
+
+
+  
+
+
+
+
+  <meta name="description" content="I finally had enough fun with building LLVM Transform Obfuscation Passes and decided to build a VMProtect-Like obfuscation mechanism.">
+<meta name="keywords" content="LLVM">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Cross-Platform VMProtect with LLVM">
+<meta property="og:url" content="http://mayuyu.io/2018/08/08/Cross-Platform-VMProtect-with-LLVM/index.html">
+<meta property="og:site_name" content="Believe Be:leave">
+<meta property="og:description" content="I finally had enough fun with building LLVM Transform Obfuscation Passes and decided to build a VMProtect-Like obfuscation mechanism.">
+<meta property="og:locale" content="en">
+<meta property="og:image" content="http://mayuyu.io/2018/08/08/Cross-Platform-VMProtect-with-LLVM/VMP.png">
+<meta property="og:updated_time" content="2018-08-28T09:04:12.000Z">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="Cross-Platform VMProtect with LLVM">
+<meta name="twitter:description" content="I finally had enough fun with building LLVM Transform Obfuscation Passes and decided to build a VMProtect-Like obfuscation mechanism.">
+<meta name="twitter:image" content="http://mayuyu.io/2018/08/08/Cross-Platform-VMProtect-with-LLVM/VMP.png">
+
+
+
+  <link rel="alternate" href="/rss2.xml" title="Believe Be:leave" type="application/atom+xml">
+
+
+
+
+  <link rel="canonical" href="http://mayuyu.io/2018/08/08/Cross-Platform-VMProtect-with-LLVM/">
+
+
+
+<script type="text/javascript" id="page.configurations">
+  CONFIG.page = {
+    sidebar: "",
+  };
+</script>
+
+  <title>Cross-Platform VMProtect with LLVM | Believe Be:leave</title>
+  
+
+
+
+
+<script async src="https://www.googletagmanager.com/gtag/js?id=UA-111741589-1"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'UA-111741589-1');
+</script>
+
+
+
+
+
+
+  <noscript>
+  <style type="text/css">
+    .use-motion .motion-element,
+    .use-motion .brand,
+    .use-motion .menu-item,
+    .sidebar-inner,
+    .use-motion .post-block,
+    .use-motion .pagination,
+    .use-motion .comments,
+    .use-motion .post-header,
+    .use-motion .post-body,
+    .use-motion .collection-title { opacity: initial; }
+
+    .use-motion .logo,
+    .use-motion .site-title,
+    .use-motion .site-subtitle {
+      opacity: initial;
+      top: initial;
+    }
+
+    .use-motion {
+      .logo-line-before i { left: initial; }
+      .logo-line-after i { right: initial; }
+    }
+  </style>
+</noscript>
+
+</head>
+
+<body itemscope="" itemtype="http://schema.org/WebPage" lang="en">
+
+  
+  
+    
+  
+
+  <div class="container sidebar-position-left page-post-detail">
+    <div class="headband"></div>
+
+    <header id="header" class="header" itemscope="" itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-wrapper">
+  <div class="site-meta ">
+    
+
+    <div class="custom-logo-site-title">
+      <a href="/" class="brand" rel="start">
+        <span class="logo-line-before"><i></i></span>
+        <span class="site-title">Believe Be:leave</span>
+        <span class="logo-line-after"><i></i></span>
+      </a>
+    </div>
+      
+        <p class="site-subtitle"></p>
+      
+  </div>
+
+  <div class="site-nav-toggle">
+    <button aria-label="Toggle navigation bar">
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+    </button>
+  </div>
+</div>
+
+
+
+
+<nav class="site-nav">
+  
+    <ul id="menu" class="menu">
+      
+        
+        
+        
+          
+          <li class="menu-item menu-item-home">
+    <a href="/" rel="section">
+      <i class="menu-item-icon fa fa-fw fa-home"></i> <br>Home</a>
+  </li>
+        
+        
+        
+          
+          <li class="menu-item menu-item-about">
+    <a href="/about/" rel="section">
+      <i class="menu-item-icon fa fa-fw fa-user"></i> <br>About</a>
+  </li>
+        
+        
+        
+          
+          <li class="menu-item menu-item-tags">
+    <a href="/tags/" rel="section">
+      <i class="menu-item-icon fa fa-fw fa-tags"></i> <br>Tags</a>
+  </li>
+        
+        
+        
+          
+          <li class="menu-item menu-item-archives">
+    <a href="/archives/" rel="section">
+      <i class="menu-item-icon fa fa-fw fa-archive"></i> <br>Archives</a>
+  </li>
+        
+        
+        
+          
+          <li class="menu-item menu-item-(・∀・)">
+    <a href="/music/" rel="section">
+      <i class="menu-item-icon fa fa-fw fa-soundcloud"></i> <br>(・∀・)</a>
+  </li>
+
+      
+      
+    </ul>
+  
+
+  
+
+  
+</nav>
+
+
+
+  
+
+
+
+</div>
+    </header>
+
+    
+
+
+    <main id="main" class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
+            
+
+          
+          <div id="content" class="content">
+            
+
+  <div id="posts" class="posts-expand">
+    
+
+  
+
+  
+  
+  
+
+  
+
+  <article class="post post-type-normal" itemscope="" itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block">
+    <link itemprop="mainEntityOfPage" href="http://mayuyu.io/2018/08/08/Cross-Platform-VMProtect-with-LLVM/">
+
+    <span hidden itemprop="author" itemscope="" itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="Naville Zhang">
+      <meta itemprop="description" content="">
+      <meta itemprop="image" content="https://en.gravatar.com/userimage/58512415/30071b4d28256e87233b405859ad9b22.jpg?size=512">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope="" itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="Believe Be:leave">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">Cross-Platform VMProtect with LLVM
+              
+            
+          </h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+
+            
+            
+            
+
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">Posted on</span>
+              
+
+              
+                
+              
+
+              <time title="Created: 2018-08-08 16:24:45" itemprop="dateCreated datePublished" datetime="2018-08-08T16:24:45+01:00">2018-08-08</time>
+            
+
+            
+              
+
+              
+                
+                <span class="post-meta-divider">|</span>
+                
+
+                <span class="post-meta-item-icon">
+                  <i class="fa fa-calendar-check-o"></i>
+                </span>
+                
+                  <span class="post-meta-item-text">Edited on</span>
+                
+                <time title="Modified: 2018-08-28 10:04:12" itemprop="dateModified" datetime="2018-08-28T10:04:12+01:00">2018-08-28</time>
+              
+            
+          </span>
+
+          
+
+          
+            
+          
+
+          
+          
+             <span id="/2018/08/08/Cross-Platform-VMProtect-with-LLVM/" class="leancloud_visitors" data-flag-title="Cross-Platform VMProtect with LLVM">
+               <span class="post-meta-divider">|</span>
+               <span class="post-meta-item-icon">
+                 <i class="fa fa-eye"></i>
+               </span>
+               
+                 <span class="post-meta-item-text">Views: </span>
+               
+                 <span class="leancloud-visitors-count"></span>
+             </span>
+          
+
+          
+
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        <link rel="stylesheet" type="text/css" href="https://cdn.jsdelivr.net/hint.css/2.4.1/hint.min.css"><p>I finally had enough fun with building LLVM Transform Obfuscation Passes and decided to build a VMProtect-Like obfuscation mechanism.</p>
+<a id="more"></a>
+<p>Below is the emulated CPU’s control flow graph. Extra protection disabled, otherwise you won’t even see this graph.<br><img src="VMP.png" alt=""></p>
+<h2 id="Current-Implementations"><a href="#Current-Implementations" class="headerlink" title="Current Implementations"></a>Current Implementations</h2><h3 id="Assembly-Interpreter"><a href="#Assembly-Interpreter" class="headerlink" title="Assembly Interpreter"></a>Assembly Interpreter</h3><ul>
+<li>Mostly used design pattern</li>
+<li>Takes a large amount of time to add support for a new platform</li>
+<li>Not Fast Enough</li>
+<li>Hard to maintain/debug</li>
+</ul>
+<h3 id="LLVM-IR-Interpreter"><a href="#LLVM-IR-Interpreter" class="headerlink" title="LLVM IR Interpreter"></a>LLVM IR Interpreter</h3><ul>
+<li>Similar to Assembly Interpreter, expect more trouble to solve. For example using reg2mem to resolve PhiNodes</li>
+<li>Bridging with native code. Global Variable/Local Memory Address mapping</li>
+<li>var-arg support</li>
+<li>Emulating stack?</li>
+</ul>
+<h3 id="High-Level-Language-Interpreter"><a href="#High-Level-Language-Interpreter" class="headerlink" title="High-Level Language Interpreter"></a>High-Level Language Interpreter</h3><ul>
+<li>Not safe enough(Dump out string and it’s over.)</li>
+<li>JIT implementation requires a full compile chain available at runtime.</li>
+<li>Raw Interpreter Implementation needs to handle structure coercion in order to properly support foreign function calling<sup id="fnref:1"><a href="#fn:1" rel="footnote"><span class="hint--top hint--error hint--medium hint--rounded hint--bounce" aria-label="External Reading: [DragonFFI: FFI/JIT for the C language using Clang/LLVM](http://blog.llvm.org/2018/03/dragonffi-ffijit-for-c-language-using.html)
+">[1]</span></a></sup></li>
+</ul>
+<h2 id="Hikari’s-implementation"><a href="#Hikari’s-implementation" class="headerlink" title="Hikari’s implementation"></a>Hikari’s implementation</h2><p>In order to achieve cross platform with minimum effort, Hikari’s VM Protection emulates a specialized CPU with full fetch-decode-execute cycle.</p>
+<h3 id="Supporting-LLVM-Instructions"><a href="#Supporting-LLVM-Instructions" class="headerlink" title="Supporting LLVM Instructions"></a>Supporting LLVM Instructions</h3><ul>
+<li>Cast Instructions are essentially no-op</li>
+<li>CallInsts are handled by using LLVM to generate proper assembly CallSites</li>
+<li>BinaryOperators are obviously easy to handle</li>
+<li>Invoke Instructions are lowered to CallInsts (Essentially unsupported atm)</li>
+<li>Load/Stores are properly bitcasted</li>
+<li>Everything else is left as-is</li>
+</ul>
+<p>The arguments are passed as pointers and each op’s handling block is responsible for specializing itself to handle each variation of the arguments.</p>
+<h3 id="Finding-Candidate-Instructions"><a href="#Finding-Candidate-Instructions" class="headerlink" title="Finding Candidate Instructions"></a>Finding Candidate Instructions</h3><p>Since our VM implementation is pretty dumb and doesn’t support all the instructions(yet), we need to find instruction sequences to patch and replace. This algorithm is pretty straightforward at the moment. Do note, however, that we need to run various lowering passes to make sure:  </p>
+<ul>
+<li>PhiNodes are properly lowered</li>
+<li>Intrinsics are either stripped out or lowered into platform specific library calls</li>
+<li>ConstantExprs are properly resolved</li>
+<li>etc…</li>
+</ul>
+<p>The actual source code won’t be open-source but you should be able to craft yourself one after reading this.</p>
+<p>Zhang</p>
+<div id="footnotes"><hr><div id="footnotelist"><ol style="list-style: none; padding-left: 0; margin-left: 40px"><li id="fn:1"><span style="display: inline-block; vertical-align: top; padding-right: 10px; margin-left: -40px">1.</span><span style="display: inline-block; vertical-align: top; margin-left: 10px;">External Reading: <a href="http://blog.llvm.org/2018/03/dragonffi-ffijit-for-c-language-using.html" target="_blank" rel="noopener">DragonFFI: FFI/JIT for the C language using Clang/LLVM</a><a href="#fnref:1" rev="footnote"> ↩</a></span></li></ol></div></div>
+      
+    </div>
+
+    
+
+    
+    
+    
+
+    
+
+    
+
+    
+
+    <footer class="post-footer">
+      
+        <div class="post-tags">
+          
+            <a href="/tags/LLVM/" rel="tag"># LLVM</a>
+          
+        </div>
+      
+
+      
+      
+      
+
+      
+        <div class="post-nav">
+          <div class="post-nav-next post-nav-item">
+            
+              <a href="/2018/06/04/PhiNode-in-LLVM/" rel="next" title="PhiNode in LLVM">
+                <i class="fa fa-chevron-left"></i> PhiNode in LLVM
+              </a>
+            
+          </div>
+
+          <span class="post-nav-divider"></span>
+
+          <div class="post-nav-prev post-nav-item">
+            
+              <a href="/2018/12/01/de_obf_part1/" rel="prev" title="de_obf Part1: Theory">
+                de_obf Part1: Theory <i class="fa fa-chevron-right"></i>
+              </a>
+            
+          </div>
+        </div>
+      
+
+      
+      
+    </footer>
+  </div>
+  
+  
+  
+  </article>
+
+
+
+    <div class="post-spread">
+      
+    </div>
+  </div>
+
+
+          </div>
+          
+
+  
+
+
+
+        </div>
+        
+          
+  
+  <div class="sidebar-toggle">
+    <div class="sidebar-toggle-line-wrap">
+      <span class="sidebar-toggle-line sidebar-toggle-line-first"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-middle"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-last"></span>
+    </div>
+  </div>
+
+  <aside id="sidebar" class="sidebar">
+    
+    <div class="sidebar-inner">
+
+      
+
+      
+        <ul class="sidebar-nav motion-element">
+          <li class="sidebar-nav-toc sidebar-nav-active" data-target="post-toc-wrap">
+            Table of Contents
+          </li>
+          <li class="sidebar-nav-overview" data-target="site-overview-wrap">
+            Overview
+          </li>
+        </ul>
+      
+
+      <section class="site-overview-wrap sidebar-panel">
+        <div class="site-overview">
+          <div class="site-author motion-element" itemprop="author" itemscope="" itemtype="http://schema.org/Person">
+            
+              <img class="site-author-image" itemprop="image" src="https://en.gravatar.com/userimage/58512415/30071b4d28256e87233b405859ad9b22.jpg?size=512" alt="Naville Zhang">
+            
+              <p class="site-author-name" itemprop="name">Naville Zhang</p>
+              <p class="site-description motion-element" itemprop="description">それは凄い桜だったが、もう二度と咲くことは無いだろう。</p>
+          </div>
+
+          
+            <nav class="site-state motion-element">
+              
+                <div class="site-state-item site-state-posts">
+                
+                  <a href="/archives/">
+                
+                    <span class="site-state-item-count">18</span>
+                    <span class="site-state-item-name">posts</span>
+                  </a>
+                </div>
+              
+
+              
+
+              
+                
+                
+                <div class="site-state-item site-state-tags">
+                  <a href="/tags/index.html">
+                    
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                    <span class="site-state-item-count">3</span>
+                    <span class="site-state-item-name">tags</span>
+                  </a>
+                </div>
+              
+            </nav>
+          
+
+          
+            <div class="feed-link motion-element">
+              <a href="/rss2.xml" rel="alternate">
+                <i class="fa fa-rss"></i>
+                RSS
+              </a>
+            </div>
+          
+
+          
+            <div class="links-of-author motion-element">
+              
+                <span class="links-of-author-item">
+                  <a href="Link" target="_blank" title="LinkLabel"><i class="fa fa-fw fa-globe"></i>LinkLabel</a>
+                  
+                </span>
+              
+                <span class="links-of-author-item">
+                  <a href="https://github.com/Naville" target="_blank" title="GitHub"><i class="fa fa-fw fa-github"></i>GitHub</a>
+                  
+                </span>
+              
+                <span class="links-of-author-item">
+                  <a href="https://t.me/SummerDream" target="_blank" title="Telegram"><i class="fa fa-fw fa-telegram"></i>Telegram</a>
+                  
+                </span>
+              
+                <span class="links-of-author-item">
+                  <a href="https://steamcommunity.com/id/HashimotoNanami/" target="_blank" title="Steam"><i class="fa fa-fw fa-steam"></i>Steam</a>
+                  
+                </span>
+              
+                <span class="links-of-author-item">
+                  <a href="https://reddit.com/u/NavilleZhang" target="_blank" title="Reddit"><i class="fa fa-fw fa-reddit"></i>Reddit</a>
+                  
+                </span>
+              
+                <span class="links-of-author-item">
+                  <a href="https://keybase.io/navillezhang/pgp_keys.asc" target="_blank" title="PGP"><i class="fa fa-fw fa-key"></i>PGP</a>
+                  
+                </span>
+              
+                <span class="links-of-author-item">
+                  <a href="https://keybase.io/navillezhang" target="_blank" title="Keybase"><i class="fa fa-fw fa-keybase"></i>Keybase</a>
+                  
+                </span>
+              
+            </div>
+          
+
+          
+          
+            <div class="cc-license motion-element" itemprop="license">
+              <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/" class="cc-opacity" target="_blank">
+                <img src="/images/cc-by-nc-sa.svg" alt="Creative Commons">
+              </a>
+            </div>
+          
+
+          
+          
+
+          
+            
+          
+          
+
+        </div>
+      </section>
+
+      
+      <!--noindex-->
+        <section class="post-toc-wrap motion-element sidebar-panel sidebar-panel-active">
+          <div class="post-toc">
+
+            
+              
+            
+
+            
+              <div class="post-toc-content"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#Current-Implementations"><span class="nav-number">1.</span> <span class="nav-text">Current Implementations</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#Assembly-Interpreter"><span class="nav-number">1.1.</span> <span class="nav-text">Assembly Interpreter</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#LLVM-IR-Interpreter"><span class="nav-number">1.2.</span> <span class="nav-text">LLVM IR Interpreter</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#High-Level-Language-Interpreter"><span class="nav-number">1.3.</span> <span class="nav-text">High-Level Language Interpreter</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#Hikari’s-implementation"><span class="nav-number">2.</span> <span class="nav-text">Hikari’s implementation</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#Supporting-LLVM-Instructions"><span class="nav-number">2.1.</span> <span class="nav-text">Supporting LLVM Instructions</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#Finding-Candidate-Instructions"><span class="nav-number">2.2.</span> <span class="nav-text">Finding Candidate Instructions</span></a></li></ol></li></ol></div>
+            
+
+          </div>
+        </section>
+      <!--/noindex-->
+      
+
+      
+
+    </div>
+  </aside>
+
+
+        
+      </div>
+    </main>
+
+    <footer id="footer" class="footer">
+      <div class="footer-inner">
+        <div class="copyright">&copy; <span itemprop="copyrightYear">2019</span>
+  <span class="with-love" id="animate">
+    <i class="fa fa-user"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">Naville Zhang</span>
+
+  
+
+  
+</div>
+
+
+
+
+  <div class="powered-by">Powered by <a class="theme-link" target="_blank" href="https://hexo.io">Hexo</a> v3.8.0</div>
+
+
+
+
+
+
+
+
+        
+
+
+
+
+
+
+
+
+        
+      </div>
+    </footer>
+
+    
+      <div class="back-to-top">
+        <i class="fa fa-arrow-up"></i>
+        
+      </div>
+    
+
+    
+
+  </div>
+
+  
+
+<script type="text/javascript">
+  if (Object.prototype.toString.call(window.Promise) !== '[object Function]') {
+    window.Promise = null;
+  }
+</script>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+    <script type="text/javascript" src="/lib/jquery/index.js?v=2.1.3"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/velocity/velocity.min.js?v=1.2.1"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/velocity/velocity.ui.min.js?v=1.2.1"></script>
+  
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/utils.js?v=6.1.0"></script>
+
+  <script type="text/javascript" src="/js/src/motion.js?v=6.1.0"></script>
+
+
+
+  
+  
+
+
+  <script type="text/javascript" src="/js/src/affix.js?v=6.1.0"></script>
+
+  <script type="text/javascript" src="/js/src/schemes/pisces.js?v=6.1.0"></script>
+
+
+
+  
+  <script type="text/javascript" src="/js/src/scrollspy.js?v=6.1.0"></script>
+<script type="text/javascript" src="/js/src/post-details.js?v=6.1.0"></script>
+
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/bootstrap.js?v=6.1.0"></script>
+
+
+
+  
+
+
+
+	
+
+
+
+
+
+  
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+  
+
+  
+  <script src="https://cdn1.lncld.net/static/js/av-core-mini-0.6.4.js"></script>
+  <script>AV.initialize("kliQMAxK2Ue2fOoAGVYmwBJs-gzGzoHsz", "pgVjsYjotIxBrmm4efANflqc");</script>
+  <script>
+    function showTime(Counter) {
+      var query = new AV.Query(Counter);
+      var entries = [];
+      var $visitors = $(".leancloud_visitors");
+
+      $visitors.each(function () {
+        entries.push( $(this).attr("id").trim() );
+      });
+
+      query.containedIn('url', entries);
+      query.find()
+        .done(function (results) {
+          var COUNT_CONTAINER_REF = '.leancloud-visitors-count';
+
+          if (results.length === 0) {
+            $visitors.find(COUNT_CONTAINER_REF).text(0);
+            return;
+          }
+
+          for (var i = 0; i < results.length; i++) {
+            var item = results[i];
+            var url = item.get('url');
+            var time = item.get('time');
+            var element = document.getElementById(url);
+
+            $(element).find(COUNT_CONTAINER_REF).text(time);
+          }
+          for(var i = 0; i < entries.length; i++) {
+            var url = entries[i];
+            var element = document.getElementById(url);
+            var countSpan = $(element).find(COUNT_CONTAINER_REF);
+            if( countSpan.text() == '') {
+              countSpan.text(0);
+            }
+          }
+        })
+        .fail(function (object, error) {
+          console.log("Error: " + error.code + " " + error.message);
+        });
+    }
+
+    function addCount(Counter) {
+      var $visitors = $(".leancloud_visitors");
+      var url = $visitors.attr('id').trim();
+      var title = $visitors.attr('data-flag-title').trim();
+      var query = new AV.Query(Counter);
+
+      query.equalTo("url", url);
+      query.find({
+        success: function(results) {
+          if (results.length > 0) {
+            var counter = results[0];
+            counter.fetchWhenSave(true);
+            counter.increment("time");
+            
+              var $element = $(document.getElementById(url));
+              $element.find('.leancloud-visitors-count').text(counter.get('time'));
+            
+            counter.save(null, {
+              success: function(counter) {
+                
+              },
+              error: function(counter, error) {
+                console.log('Failed to save Visitor num, with error message: ' + error.message);
+              }
+            });
+          } else {
+            
+              var $element = $(document.getElementById(url));
+              $element.find('.leancloud-visitors-count').text('Counter not initialized! See more at console err msg.');
+              console.error('ATTENTION! LeanCloud counter has security bug, see here how to solve it: https://github.com/theme-next/hexo-leancloud-counter-security. \n But you also can use LeanCloud without security, by set \'security\' option to \'false\'.');
+            
+          }
+        },
+        error: function(error) {
+          console.log('Error:' + error.code + " " + error.message);
+        }
+      });
+    }
+
+    $(function() {
+      var Counter = AV.Object.extend("Counter");
+      if ($('.leancloud_visitors').length == 1) {
+        addCount(Counter);
+      } else if ($('.post-title-link').length > 1) {
+        showTime(Counter);
+      }
+    });
+  </script>
+
+
+
+  
+
+  
+
+  
+
+  
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+
+<script src="/live2dw/lib/L2Dwidget.min.js?0c58a1486de42ac6cc1c59c7d98ae887"></script><script>L2Dwidget.init({"pluginRootPath":"live2dw/","pluginJsPath":"lib/","pluginModelPath":"assets/","model":{"jsonPath":"/live2dw/assets/miku.model.json"},"display":{"position":"right","width":150,"height":300},"mobile":{"show":false},"log":false,"tagMode":false});</script></body>
+</html>

@@ -1,0 +1,994 @@
+<!DOCTYPE html>
+
+
+
+  
+
+
+<html class="theme-next gemini use-motion" lang="en">
+<head><meta name="generator" content="Hexo 3.8.0">
+  <meta charset="UTF-8">
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+
+
+
+
+
+
+
+
+
+
+
+
+<meta http-equiv="Cache-Control" content="no-transform">
+<meta http-equiv="Cache-Control" content="no-siteapp">
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<link href="/lib/font-awesome/css/font-awesome.min.css?v=4.6.2" rel="stylesheet" type="text/css">
+
+<link href="/css/main.css?v=6.1.0" rel="stylesheet" type="text/css">
+
+
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png?v=6.1.0">
+
+
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png?v=6.1.0">
+
+
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png?v=6.1.0">
+
+
+  <link rel="mask-icon" href="/images/logo.svg?v=6.1.0" color="#222">
+
+
+
+
+
+
+
+
+
+<script type="text/javascript" id="hexo.configurations">
+  var NexT = window.NexT || {};
+  var CONFIG = {
+    root: '/',
+    scheme: 'Gemini',
+    version: '6.1.0',
+    sidebar: {"position":"left","display":"post","offset":12,"b2t":false,"scrollpercent":false,"onmobile":false},
+    fancybox: false,
+    fastclick: false,
+    lazyload: false,
+    tabs: true,
+    motion: {"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},
+    algolia: {
+      applicationID: '',
+      apiKey: '',
+      indexName: '',
+      hits: {"per_page":10},
+      labels: {"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}
+    }
+  };
+</script>
+
+
+  
+
+
+
+
+  <meta name="description" content="So recently I was researching a method regarding a better binary protection technique on iOS. Ideally VMProtect-like.">
+<meta name="keywords" content="LLVM">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Exploring LLVM ExecutionEngine">
+<meta property="og:url" content="http://mayuyu.io/2017/07/12/Exploring-LLVM-ExecutionEngine/index.html">
+<meta property="og:site_name" content="Believe Be:leave">
+<meta property="og:description" content="So recently I was researching a method regarding a better binary protection technique on iOS. Ideally VMProtect-like.">
+<meta property="og:locale" content="en">
+<meta property="og:image" content="http://mayuyu.io/2017/07/12/Exploring-LLVM-ExecutionEngine/Success.png">
+<meta property="og:updated_time" content="2017-11-22T06:19:55.000Z">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="Exploring LLVM ExecutionEngine">
+<meta name="twitter:description" content="So recently I was researching a method regarding a better binary protection technique on iOS. Ideally VMProtect-like.">
+<meta name="twitter:image" content="http://mayuyu.io/2017/07/12/Exploring-LLVM-ExecutionEngine/Success.png">
+
+
+
+  <link rel="alternate" href="/rss2.xml" title="Believe Be:leave" type="application/atom+xml">
+
+
+
+
+  <link rel="canonical" href="http://mayuyu.io/2017/07/12/Exploring-LLVM-ExecutionEngine/">
+
+
+
+<script type="text/javascript" id="page.configurations">
+  CONFIG.page = {
+    sidebar: "",
+  };
+</script>
+
+  <title>Exploring LLVM ExecutionEngine | Believe Be:leave</title>
+  
+
+
+
+
+<script async src="https://www.googletagmanager.com/gtag/js?id=UA-111741589-1"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'UA-111741589-1');
+</script>
+
+
+
+
+
+
+  <noscript>
+  <style type="text/css">
+    .use-motion .motion-element,
+    .use-motion .brand,
+    .use-motion .menu-item,
+    .sidebar-inner,
+    .use-motion .post-block,
+    .use-motion .pagination,
+    .use-motion .comments,
+    .use-motion .post-header,
+    .use-motion .post-body,
+    .use-motion .collection-title { opacity: initial; }
+
+    .use-motion .logo,
+    .use-motion .site-title,
+    .use-motion .site-subtitle {
+      opacity: initial;
+      top: initial;
+    }
+
+    .use-motion {
+      .logo-line-before i { left: initial; }
+      .logo-line-after i { right: initial; }
+    }
+  </style>
+</noscript>
+
+</head>
+
+<body itemscope="" itemtype="http://schema.org/WebPage" lang="en">
+
+  
+  
+    
+  
+
+  <div class="container sidebar-position-left page-post-detail">
+    <div class="headband"></div>
+
+    <header id="header" class="header" itemscope="" itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-wrapper">
+  <div class="site-meta ">
+    
+
+    <div class="custom-logo-site-title">
+      <a href="/" class="brand" rel="start">
+        <span class="logo-line-before"><i></i></span>
+        <span class="site-title">Believe Be:leave</span>
+        <span class="logo-line-after"><i></i></span>
+      </a>
+    </div>
+      
+        <p class="site-subtitle"></p>
+      
+  </div>
+
+  <div class="site-nav-toggle">
+    <button aria-label="Toggle navigation bar">
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+    </button>
+  </div>
+</div>
+
+
+
+
+<nav class="site-nav">
+  
+    <ul id="menu" class="menu">
+      
+        
+        
+        
+          
+          <li class="menu-item menu-item-home">
+    <a href="/" rel="section">
+      <i class="menu-item-icon fa fa-fw fa-home"></i> <br>Home</a>
+  </li>
+        
+        
+        
+          
+          <li class="menu-item menu-item-about">
+    <a href="/about/" rel="section">
+      <i class="menu-item-icon fa fa-fw fa-user"></i> <br>About</a>
+  </li>
+        
+        
+        
+          
+          <li class="menu-item menu-item-tags">
+    <a href="/tags/" rel="section">
+      <i class="menu-item-icon fa fa-fw fa-tags"></i> <br>Tags</a>
+  </li>
+        
+        
+        
+          
+          <li class="menu-item menu-item-archives">
+    <a href="/archives/" rel="section">
+      <i class="menu-item-icon fa fa-fw fa-archive"></i> <br>Archives</a>
+  </li>
+        
+        
+        
+          
+          <li class="menu-item menu-item-(・∀・)">
+    <a href="/music/" rel="section">
+      <i class="menu-item-icon fa fa-fw fa-soundcloud"></i> <br>(・∀・)</a>
+  </li>
+
+      
+      
+    </ul>
+  
+
+  
+
+  
+</nav>
+
+
+
+  
+
+
+
+</div>
+    </header>
+
+    
+
+
+    <main id="main" class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
+            
+
+          
+          <div id="content" class="content">
+            
+
+  <div id="posts" class="posts-expand">
+    
+
+  
+
+  
+  
+  
+
+  
+
+  <article class="post post-type-normal" itemscope="" itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block">
+    <link itemprop="mainEntityOfPage" href="http://mayuyu.io/2017/07/12/Exploring-LLVM-ExecutionEngine/">
+
+    <span hidden itemprop="author" itemscope="" itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="Naville Zhang">
+      <meta itemprop="description" content="">
+      <meta itemprop="image" content="https://en.gravatar.com/userimage/58512415/30071b4d28256e87233b405859ad9b22.jpg?size=512">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope="" itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="Believe Be:leave">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">Exploring LLVM ExecutionEngine
+              
+            
+          </h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+
+            
+            
+            
+
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">Posted on</span>
+              
+
+              
+                
+              
+
+              <time title="Created: 2017-07-12 22:44:13" itemprop="dateCreated datePublished" datetime="2017-07-12T22:44:13+01:00">2017-07-12</time>
+            
+
+            
+              
+
+              
+                
+                <span class="post-meta-divider">|</span>
+                
+
+                <span class="post-meta-item-icon">
+                  <i class="fa fa-calendar-check-o"></i>
+                </span>
+                
+                  <span class="post-meta-item-text">Edited on</span>
+                
+                <time title="Modified: 2017-11-22 06:19:55" itemprop="dateModified" datetime="2017-11-22T06:19:55+00:00">2017-11-22</time>
+              
+            
+          </span>
+
+          
+
+          
+            
+          
+
+          
+          
+             <span id="/2017/07/12/Exploring-LLVM-ExecutionEngine/" class="leancloud_visitors" data-flag-title="Exploring LLVM ExecutionEngine">
+               <span class="post-meta-divider">|</span>
+               <span class="post-meta-item-icon">
+                 <i class="fa fa-eye"></i>
+               </span>
+               
+                 <span class="post-meta-item-text">Views: </span>
+               
+                 <span class="leancloud-visitors-count"></span>
+             </span>
+          
+
+          
+
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        <link rel="stylesheet" type="text/css" href="https://cdn.jsdelivr.net/hint.css/2.4.1/hint.min.css"><p>  So recently I was researching a method regarding a better binary protection technique on iOS. Ideally VMProtect-like.<br>  <a id="more"></a></p>
+<h1 id="Introduction"><a href="#Introduction" class="headerlink" title="Introduction"></a>Introduction</h1><p>Years ago I had the same thought, at that time <a href="http://llvm.org/docs/CommandGuide/lli.html" target="_blank" rel="noopener">lli</a> was still very naive and has pretty limited support regarding platforms. However recently after seeing a dozen of Chinese “Mobile Application Security” companies claiming they can now run their clients’ code in a “VM”<sup id="fnref:1"><a href="#fn:1" rel="footnote"><span class="hint--top hint--error hint--medium hint--rounded hint--bounce" aria-label="Yes because security is completely based on obscurity /s
+">[1]</span></a></sup>, I was thinking “How would I implement such a thing?” and “How is that possible?” because as we all know iOS has kernel policies in place to ensure JIT is not possible <sup id="fnref:2"><a href="#fn:2" rel="footnote"><span class="hint--top hint--error hint--medium hint--rounded hint--bounce" aria-label="Detailed explanation is not my area and you should be able to find plenty of slides using a search engine
+">[2]</span></a></sup> so the implementation has to be interpretering.</p>
+<p>I honestly doubt that those companies will design a completely new IR/BitCode format instead of using the LLVM-Style IR which is already part of the day to day build process and is currently <sup id="fnref:3"><a href="#fn:3" rel="footnote"><span class="hint--top hint--error hint--medium hint--rounded hint--bounce" aria-label="In my humble opinion, that is
+">[3]</span></a></sup> <strong>de facto</strong> industry standard. Now this whole theory reminds me <code>lli</code>. Now the <strong>LLVM JIT</strong> is being described as:</p>
+<blockquote>
+<p>currently supports X86,<br> X86-64,ARM, AArch64, Mips, SystemZ, PowerPC, and PowerPC-64.</p>
+</blockquote>
+<p>Searching <code>Interpreter</code> lands us at <code>llvm/ExecutionEngine/Interpreter.h</code>, which is a subclass of <code>ExecutionEngine</code><br><code>ExecutionEngine</code> has a constructor that takes a <code>std::unique_ptr&lt;Module&gt;</code> as an argument. If you’ve ever messed around with LLVM or read my previous beginner’s explanations, you would surely know that each TranslationUnit is represented using a <code>Module</code>, and Modules can be linked at the IR Level to form a bigger Module. For anyone missed it, here is the official description:</p>
+<blockquote>
+<p>A Module instance is used to store all the information related to an LLVM module.<br>Modules are the top level container of all other LLVM Intermediate Representation (IR) objects. Each module directly contains a list of globals variables, a list of functions, a list of libraries (or other modules) this module depends on, a symbol table, and various data about the target’s characteristics.<br>A module maintains a GlobalValRefMap object that is used to hold all constant references to global variables in the module. When a global variable is destroyed, it should have no entries in the GlobalValueRefMap. The main container class for the LLVM Intermediate Representation.</p>
+</blockquote>
+<p>Now our tasks seem to be clear:</p>
+<ul>
+<li>Compile whatever code we want to run into LLVM IR</li>
+<li>In our interpreter, deserialize IR and create Module-&gt;Create Execution Engine-&gt;Run</li>
+</ul>
+<h1 id="Code"><a href="#Code" class="headerlink" title="Code"></a>Code</h1><p><code>clang -fobjc-arc -S -emit-llvm Input.c -o Input.ll</code></p>
+<p>Our test code is:</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">static int add(int a,int b)&#123;</span><br><span class="line">  return a+b;</span><br><span class="line">&#125;</span><br><span class="line">int main()&#123;</span><br><span class="line">  printf(&quot;Hello From The LLVMEESide:\n15+20 is:%i\n&quot;,add(15,20));</span><br><span class="line">  return 0;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>And the interpreter goes as:</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br></pre></td><td class="code"><pre><span class="line">//</span><br><span class="line">//  main.cpp</span><br><span class="line">//  LLVMJit</span><br><span class="line">//</span><br><span class="line">//  Created by Naville Zhang on 2017/7/12.</span><br><span class="line">//  Copyright © 2017 NavilleZhang. All rights reserved.</span><br><span class="line">//</span><br><span class="line"></span><br><span class="line">#include &lt;iostream&gt;</span><br><span class="line">#include &lt;llvm/ExecutionEngine/ExecutionEngine.h&gt;</span><br><span class="line">#include &lt;llvm/ExecutionEngine/Interpreter.h&gt;//Otherwise LTO will mess up our binary</span><br><span class="line">#include &lt;llvm/IR/Module.h&gt;</span><br><span class="line">#include &lt;llvm/IRReader/IRReader.h&gt;</span><br><span class="line">#include &lt;llvm/IR/LLVMContext.h&gt;</span><br><span class="line">#include &lt;llvm/Support/SourceMgr.h&gt;</span><br><span class="line">#include &lt;llvm/Support/TargetSelect.h&gt;</span><br><span class="line">#include &lt;llvm/ExecutionEngine/GenericValue.h&gt;</span><br><span class="line">#include &lt;llvm-c/Core.h&gt;</span><br><span class="line">using namespace llvm;</span><br><span class="line">using namespace std;</span><br><span class="line">int main(int argc, const char * argv[]) &#123;</span><br><span class="line">    InitializeNativeTarget();</span><br><span class="line">    SMDiagnostic SMD;</span><br><span class="line">    LLVMContext context;</span><br><span class="line">    std::string err;</span><br><span class="line">    EngineBuilder EB(parseIRFile(&quot;/PATH/TO/COMPILED/LL&quot;,SMD,context));</span><br><span class="line">    EB.setEngineKind(EngineKind::Interpreter);</span><br><span class="line">    EB.setErrorStr(&amp;err);</span><br><span class="line">    ExecutionEngine* EE=EB.create();</span><br><span class="line">    EE-&gt;runStaticConstructorsDestructors(false);</span><br><span class="line">    Function* main=EE-&gt;FindFunctionNamed(&quot;main&quot;);</span><br><span class="line">    EE-&gt;runFunction(main,ArrayRef&lt;GenericValue&gt;());</span><br><span class="line">    return 0;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>Run<sup id="fnref:4"><a href="#fn:4" rel="footnote"><span class="hint--top hint--error hint--medium hint--rounded hint--bounce" aria-label="Of course you also have to add library&header search path, mess around with linker settings. I personally linked all of them
+">[4]</span></a></sup></p>
+<p>It failed miserably, logging out errors regarding failed external function calling, searching <code>external function</code> in <a href="http://llvm.org/docs/CMake.html" target="_blank" rel="noopener">http://llvm.org/docs/CMake.html</a> brought us to</p>
+<blockquote>
+<p>LLVM_ENABLE_FFI:BOOL<br>Indicates whether the LLVM Interpreter will be linked with the Foreign Function Interface library (libffi) in order to enable calling external functions. If the library or its headers are installed in a custom location, you can also set the variables FFI_INCLUDE_DIR and FFI_LIBRARY_DIR to the directories where ffi.h and libffi.so can be found, respectively. Defaults to OFF.</p>
+</blockquote>
+<p>Compile LLVM again with<code>-DLLVM_ENABLE_FFI=on</code>and link to libFFI in your interpreter.Yikes<br>  <img src="Success.png" alt=""><sup id="fnref:5"><a href="#fn:5" rel="footnote"><span class="hint--top hint--error hint--medium hint--rounded hint--bounce" aria-label="Yes I messed up the description string
+">[5]</span></a></sup></p>
+<h1 id="Limitations"><a href="#Limitations" class="headerlink" title="Limitations"></a>Limitations</h1><p>It would be boring if it’s that easy to implement a interpreter. There are quite some limitations:</p>
+<ul>
+<li>Varadic external function is not supported. <code>printf</code> in the aforementioned example is actually implemented by the Interpreter itself.We need to modify interpreter’s <code>callFunction</code> to pass remaining data types all the way down to <a href="https://github.com/llvm-mirror/llvm/blob/master/lib/ExecutionEngine/Interpreter/ExternalFunctions.cpp" target="_blank" rel="noopener">lib/ExecutionEngine/Interpreter/ExternalFunctions.cpp</a> ‘s <code>ffiInvoke</code> to add missing argument types</li>
+<li>Structs are currently unsupported by <code>ExecutionEngine</code> itself.</li>
+<li>A large amount of system libraries, most notably <code>libOBJC</code> has initialize routines that requires various native level stuff. Like <code>libOBJC</code> initialize runtime classes/SELs/etc by scanning special sections in the binary<sup id="fnref:6"><a href="#fn:6" rel="footnote"><span class="hint--top hint--error hint--medium hint--rounded hint--bounce" aria-label="We can:
+  <del>Implement our own libOBJC and ship it with the IR</del> Won't work due to native libraries not initialized in IR
+  Write LLVM Pass to leave native ObjC Runtime structs intact,throw original implementation into IR and replace with native briging function
+">[6]</span></a></sup></li>
+<li>Performance impact would be huge</li>
+<li>GVs need to be mapped to native in order to be usable for native calls</li>
+</ul>
+<h1 id="Improvements"><a href="#Improvements" class="headerlink" title="Improvements"></a>Improvements</h1><ul>
+<li>Use our existing IR-Obfuscation techniques to make the IR unreadable even if the attacker managed to dump the IR</li>
+<li>Obfuscate the interpreter itself</li>
+<li>Compile to BitCode and mess around with the IntrinsicID table (or whatever it’s called) to make sure the attacker can not <code>llvm-dis</code> our BitCode even if he/she managed to dump it.</li>
+</ul>
+<div id="footnotes"><hr><div id="footnotelist"><ol style="list-style: none; padding-left: 0; margin-left: 40px"><li id="fn:1"><span style="display: inline-block; vertical-align: top; padding-right: 10px; margin-left: -40px">1.</span><span style="display: inline-block; vertical-align: top; margin-left: 10px;">Yes because security is completely based on obscurity /s<a href="#fnref:1" rev="footnote"> ↩</a></span></li><li id="fn:2"><span style="display: inline-block; vertical-align: top; padding-right: 10px; margin-left: -40px">2.</span><span style="display: inline-block; vertical-align: top; margin-left: 10px;">Detailed explanation is not my area and you should be able to find plenty of slides using a search engine<a href="#fnref:2" rev="footnote"> ↩</a></span></li><li id="fn:3"><span style="display: inline-block; vertical-align: top; padding-right: 10px; margin-left: -40px">3.</span><span style="display: inline-block; vertical-align: top; margin-left: 10px;">In my humble opinion, that is<a href="#fnref:3" rev="footnote"> ↩</a></span></li><li id="fn:4"><span style="display: inline-block; vertical-align: top; padding-right: 10px; margin-left: -40px">4.</span><span style="display: inline-block; vertical-align: top; margin-left: 10px;">Of course you also have to add library&amp;header search path, mess around with linker settings. I personally linked all of them<a href="#fnref:4" rev="footnote"> ↩</a></span></li><li id="fn:5"><span style="display: inline-block; vertical-align: top; padding-right: 10px; margin-left: -40px">5.</span><span style="display: inline-block; vertical-align: top; margin-left: 10px;">Yes I messed up the description string<a href="#fnref:5" rev="footnote"> ↩</a></span></li><li id="fn:6"><span style="display: inline-block; vertical-align: top; padding-right: 10px; margin-left: -40px">6.</span><span style="display: inline-block; vertical-align: top; margin-left: 10px;">We can:<br><del>Implement our own libOBJC and ship it with the IR</del> Won’t work due to native libraries not initialized in IR<br>Write LLVM Pass to leave native ObjC Runtime structs intact,throw original implementation into IR and replace with native briging function<a href="#fnref:6" rev="footnote"> ↩</a></span></li></ol></div></div>
+      
+    </div>
+
+    
+
+    
+    
+    
+
+    
+
+    
+
+    
+
+    <footer class="post-footer">
+      
+        <div class="post-tags">
+          
+            <a href="/tags/LLVM/" rel="tag"># LLVM</a>
+          
+        </div>
+      
+
+      
+      
+      
+
+      
+        <div class="post-nav">
+          <div class="post-nav-next post-nav-item">
+            
+              <a href="/2017/06/26/HookingMGCopyAnswerLikeABoss/" rel="next" title="Hooking MGCopyAnswer Like A Boss">
+                <i class="fa fa-chevron-left"></i> Hooking MGCopyAnswer Like A Boss
+              </a>
+            
+          </div>
+
+          <span class="post-nav-divider"></span>
+
+          <div class="post-nav-prev post-nav-item">
+            
+              <a href="/2017/09/22/AdAppActive/" rel="prev" title="A Short Analysis of AdAppActive">
+                A Short Analysis of AdAppActive <i class="fa fa-chevron-right"></i>
+              </a>
+            
+          </div>
+        </div>
+      
+
+      
+      
+    </footer>
+  </div>
+  
+  
+  
+  </article>
+
+
+
+    <div class="post-spread">
+      
+    </div>
+  </div>
+
+
+          </div>
+          
+
+  
+
+
+
+        </div>
+        
+          
+  
+  <div class="sidebar-toggle">
+    <div class="sidebar-toggle-line-wrap">
+      <span class="sidebar-toggle-line sidebar-toggle-line-first"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-middle"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-last"></span>
+    </div>
+  </div>
+
+  <aside id="sidebar" class="sidebar">
+    
+    <div class="sidebar-inner">
+
+      
+
+      
+        <ul class="sidebar-nav motion-element">
+          <li class="sidebar-nav-toc sidebar-nav-active" data-target="post-toc-wrap">
+            Table of Contents
+          </li>
+          <li class="sidebar-nav-overview" data-target="site-overview-wrap">
+            Overview
+          </li>
+        </ul>
+      
+
+      <section class="site-overview-wrap sidebar-panel">
+        <div class="site-overview">
+          <div class="site-author motion-element" itemprop="author" itemscope="" itemtype="http://schema.org/Person">
+            
+              <img class="site-author-image" itemprop="image" src="https://en.gravatar.com/userimage/58512415/30071b4d28256e87233b405859ad9b22.jpg?size=512" alt="Naville Zhang">
+            
+              <p class="site-author-name" itemprop="name">Naville Zhang</p>
+              <p class="site-description motion-element" itemprop="description">それは凄い桜だったが、もう二度と咲くことは無いだろう。</p>
+          </div>
+
+          
+            <nav class="site-state motion-element">
+              
+                <div class="site-state-item site-state-posts">
+                
+                  <a href="/archives/">
+                
+                    <span class="site-state-item-count">18</span>
+                    <span class="site-state-item-name">posts</span>
+                  </a>
+                </div>
+              
+
+              
+
+              
+                
+                
+                <div class="site-state-item site-state-tags">
+                  <a href="/tags/index.html">
+                    
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                    <span class="site-state-item-count">3</span>
+                    <span class="site-state-item-name">tags</span>
+                  </a>
+                </div>
+              
+            </nav>
+          
+
+          
+            <div class="feed-link motion-element">
+              <a href="/rss2.xml" rel="alternate">
+                <i class="fa fa-rss"></i>
+                RSS
+              </a>
+            </div>
+          
+
+          
+            <div class="links-of-author motion-element">
+              
+                <span class="links-of-author-item">
+                  <a href="Link" target="_blank" title="LinkLabel"><i class="fa fa-fw fa-globe"></i>LinkLabel</a>
+                  
+                </span>
+              
+                <span class="links-of-author-item">
+                  <a href="https://github.com/Naville" target="_blank" title="GitHub"><i class="fa fa-fw fa-github"></i>GitHub</a>
+                  
+                </span>
+              
+                <span class="links-of-author-item">
+                  <a href="https://t.me/SummerDream" target="_blank" title="Telegram"><i class="fa fa-fw fa-telegram"></i>Telegram</a>
+                  
+                </span>
+              
+                <span class="links-of-author-item">
+                  <a href="https://steamcommunity.com/id/HashimotoNanami/" target="_blank" title="Steam"><i class="fa fa-fw fa-steam"></i>Steam</a>
+                  
+                </span>
+              
+                <span class="links-of-author-item">
+                  <a href="https://reddit.com/u/NavilleZhang" target="_blank" title="Reddit"><i class="fa fa-fw fa-reddit"></i>Reddit</a>
+                  
+                </span>
+              
+                <span class="links-of-author-item">
+                  <a href="https://keybase.io/navillezhang/pgp_keys.asc" target="_blank" title="PGP"><i class="fa fa-fw fa-key"></i>PGP</a>
+                  
+                </span>
+              
+                <span class="links-of-author-item">
+                  <a href="https://keybase.io/navillezhang" target="_blank" title="Keybase"><i class="fa fa-fw fa-keybase"></i>Keybase</a>
+                  
+                </span>
+              
+            </div>
+          
+
+          
+          
+            <div class="cc-license motion-element" itemprop="license">
+              <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/" class="cc-opacity" target="_blank">
+                <img src="/images/cc-by-nc-sa.svg" alt="Creative Commons">
+              </a>
+            </div>
+          
+
+          
+          
+
+          
+            
+          
+          
+
+        </div>
+      </section>
+
+      
+      <!--noindex-->
+        <section class="post-toc-wrap motion-element sidebar-panel sidebar-panel-active">
+          <div class="post-toc">
+
+            
+              
+            
+
+            
+              <div class="post-toc-content"><ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#Introduction"><span class="nav-number">1.</span> <span class="nav-text">Introduction</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#Code"><span class="nav-number">2.</span> <span class="nav-text">Code</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#Limitations"><span class="nav-number">3.</span> <span class="nav-text">Limitations</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#Improvements"><span class="nav-number">4.</span> <span class="nav-text">Improvements</span></a></li></ol></div>
+            
+
+          </div>
+        </section>
+      <!--/noindex-->
+      
+
+      
+
+    </div>
+  </aside>
+
+
+        
+      </div>
+    </main>
+
+    <footer id="footer" class="footer">
+      <div class="footer-inner">
+        <div class="copyright">&copy; <span itemprop="copyrightYear">2019</span>
+  <span class="with-love" id="animate">
+    <i class="fa fa-user"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">Naville Zhang</span>
+
+  
+
+  
+</div>
+
+
+
+
+  <div class="powered-by">Powered by <a class="theme-link" target="_blank" href="https://hexo.io">Hexo</a> v3.8.0</div>
+
+
+
+
+
+
+
+
+        
+
+
+
+
+
+
+
+
+        
+      </div>
+    </footer>
+
+    
+      <div class="back-to-top">
+        <i class="fa fa-arrow-up"></i>
+        
+      </div>
+    
+
+    
+
+  </div>
+
+  
+
+<script type="text/javascript">
+  if (Object.prototype.toString.call(window.Promise) !== '[object Function]') {
+    window.Promise = null;
+  }
+</script>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+    <script type="text/javascript" src="/lib/jquery/index.js?v=2.1.3"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/velocity/velocity.min.js?v=1.2.1"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/velocity/velocity.ui.min.js?v=1.2.1"></script>
+  
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/utils.js?v=6.1.0"></script>
+
+  <script type="text/javascript" src="/js/src/motion.js?v=6.1.0"></script>
+
+
+
+  
+  
+
+
+  <script type="text/javascript" src="/js/src/affix.js?v=6.1.0"></script>
+
+  <script type="text/javascript" src="/js/src/schemes/pisces.js?v=6.1.0"></script>
+
+
+
+  
+  <script type="text/javascript" src="/js/src/scrollspy.js?v=6.1.0"></script>
+<script type="text/javascript" src="/js/src/post-details.js?v=6.1.0"></script>
+
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/bootstrap.js?v=6.1.0"></script>
+
+
+
+  
+
+
+
+	
+
+
+
+
+
+  
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+  
+
+  
+  <script src="https://cdn1.lncld.net/static/js/av-core-mini-0.6.4.js"></script>
+  <script>AV.initialize("kliQMAxK2Ue2fOoAGVYmwBJs-gzGzoHsz", "pgVjsYjotIxBrmm4efANflqc");</script>
+  <script>
+    function showTime(Counter) {
+      var query = new AV.Query(Counter);
+      var entries = [];
+      var $visitors = $(".leancloud_visitors");
+
+      $visitors.each(function () {
+        entries.push( $(this).attr("id").trim() );
+      });
+
+      query.containedIn('url', entries);
+      query.find()
+        .done(function (results) {
+          var COUNT_CONTAINER_REF = '.leancloud-visitors-count';
+
+          if (results.length === 0) {
+            $visitors.find(COUNT_CONTAINER_REF).text(0);
+            return;
+          }
+
+          for (var i = 0; i < results.length; i++) {
+            var item = results[i];
+            var url = item.get('url');
+            var time = item.get('time');
+            var element = document.getElementById(url);
+
+            $(element).find(COUNT_CONTAINER_REF).text(time);
+          }
+          for(var i = 0; i < entries.length; i++) {
+            var url = entries[i];
+            var element = document.getElementById(url);
+            var countSpan = $(element).find(COUNT_CONTAINER_REF);
+            if( countSpan.text() == '') {
+              countSpan.text(0);
+            }
+          }
+        })
+        .fail(function (object, error) {
+          console.log("Error: " + error.code + " " + error.message);
+        });
+    }
+
+    function addCount(Counter) {
+      var $visitors = $(".leancloud_visitors");
+      var url = $visitors.attr('id').trim();
+      var title = $visitors.attr('data-flag-title').trim();
+      var query = new AV.Query(Counter);
+
+      query.equalTo("url", url);
+      query.find({
+        success: function(results) {
+          if (results.length > 0) {
+            var counter = results[0];
+            counter.fetchWhenSave(true);
+            counter.increment("time");
+            
+              var $element = $(document.getElementById(url));
+              $element.find('.leancloud-visitors-count').text(counter.get('time'));
+            
+            counter.save(null, {
+              success: function(counter) {
+                
+              },
+              error: function(counter, error) {
+                console.log('Failed to save Visitor num, with error message: ' + error.message);
+              }
+            });
+          } else {
+            
+              var $element = $(document.getElementById(url));
+              $element.find('.leancloud-visitors-count').text('Counter not initialized! See more at console err msg.');
+              console.error('ATTENTION! LeanCloud counter has security bug, see here how to solve it: https://github.com/theme-next/hexo-leancloud-counter-security. \n But you also can use LeanCloud without security, by set \'security\' option to \'false\'.');
+            
+          }
+        },
+        error: function(error) {
+          console.log('Error:' + error.code + " " + error.message);
+        }
+      });
+    }
+
+    $(function() {
+      var Counter = AV.Object.extend("Counter");
+      if ($('.leancloud_visitors').length == 1) {
+        addCount(Counter);
+      } else if ($('.post-title-link').length > 1) {
+        showTime(Counter);
+      }
+    });
+  </script>
+
+
+
+  
+
+  
+
+  
+
+  
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+
+<script src="/live2dw/lib/L2Dwidget.min.js?0c58a1486de42ac6cc1c59c7d98ae887"></script><script>L2Dwidget.init({"pluginRootPath":"live2dw/","pluginJsPath":"lib/","pluginModelPath":"assets/","model":{"jsonPath":"/live2dw/assets/miku.model.json"},"display":{"position":"right","width":150,"height":300},"mobile":{"show":false},"log":false,"tagMode":false});</script></body>
+</html>

@@ -1,0 +1,972 @@
+<!DOCTYPE html>
+
+
+
+  
+
+
+<html class="theme-next gemini use-motion" lang="en">
+<head><meta name="generator" content="Hexo 3.8.0">
+  <meta charset="UTF-8">
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+
+
+
+
+
+
+
+
+
+
+
+
+<meta http-equiv="Cache-Control" content="no-transform">
+<meta http-equiv="Cache-Control" content="no-siteapp">
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<link href="/lib/font-awesome/css/font-awesome.min.css?v=4.6.2" rel="stylesheet" type="text/css">
+
+<link href="/css/main.css?v=6.1.0" rel="stylesheet" type="text/css">
+
+
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png?v=6.1.0">
+
+
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png?v=6.1.0">
+
+
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png?v=6.1.0">
+
+
+  <link rel="mask-icon" href="/images/logo.svg?v=6.1.0" color="#222">
+
+
+
+
+
+
+
+
+
+<script type="text/javascript" id="hexo.configurations">
+  var NexT = window.NexT || {};
+  var CONFIG = {
+    root: '/',
+    scheme: 'Gemini',
+    version: '6.1.0',
+    sidebar: {"position":"left","display":"post","offset":12,"b2t":false,"scrollpercent":false,"onmobile":false},
+    fancybox: false,
+    fastclick: false,
+    lazyload: false,
+    tabs: true,
+    motion: {"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},
+    algolia: {
+      applicationID: '',
+      apiKey: '',
+      indexName: '',
+      hits: {"per_page":10},
+      labels: {"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}
+    }
+  };
+</script>
+
+
+  
+
+
+
+
+  <meta name="description" content="Since Apple’s Development Tools contains a bunch of modifications that will probably never see its day in LLVM upstream and Swift contains the latest open-source Apple fork of LLVM at the moment. It’s">
+<meta name="keywords" content="LLVM">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Porting Hikari to Swift&#x2F;Clang and Build for Production">
+<meta property="og:url" content="http://mayuyu.io/2018/02/13/Porting-Hikari-to-Swift-Clang/index.html">
+<meta property="og:site_name" content="Believe Be:leave">
+<meta property="og:description" content="Since Apple’s Development Tools contains a bunch of modifications that will probably never see its day in LLVM upstream and Swift contains the latest open-source Apple fork of LLVM at the moment. It’s">
+<meta property="og:locale" content="en">
+<meta property="og:updated_time" content="2018-02-23T12:27:36.000Z">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="Porting Hikari to Swift&#x2F;Clang and Build for Production">
+<meta name="twitter:description" content="Since Apple’s Development Tools contains a bunch of modifications that will probably never see its day in LLVM upstream and Swift contains the latest open-source Apple fork of LLVM at the moment. It’s">
+
+
+
+  <link rel="alternate" href="/rss2.xml" title="Believe Be:leave" type="application/atom+xml">
+
+
+
+
+  <link rel="canonical" href="http://mayuyu.io/2018/02/13/Porting-Hikari-to-Swift-Clang/">
+
+
+
+<script type="text/javascript" id="page.configurations">
+  CONFIG.page = {
+    sidebar: "",
+  };
+</script>
+
+  <title>Porting Hikari to Swift/Clang and Build for Production | Believe Be:leave</title>
+  
+
+
+
+
+<script async src="https://www.googletagmanager.com/gtag/js?id=UA-111741589-1"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'UA-111741589-1');
+</script>
+
+
+
+
+
+
+  <noscript>
+  <style type="text/css">
+    .use-motion .motion-element,
+    .use-motion .brand,
+    .use-motion .menu-item,
+    .sidebar-inner,
+    .use-motion .post-block,
+    .use-motion .pagination,
+    .use-motion .comments,
+    .use-motion .post-header,
+    .use-motion .post-body,
+    .use-motion .collection-title { opacity: initial; }
+
+    .use-motion .logo,
+    .use-motion .site-title,
+    .use-motion .site-subtitle {
+      opacity: initial;
+      top: initial;
+    }
+
+    .use-motion {
+      .logo-line-before i { left: initial; }
+      .logo-line-after i { right: initial; }
+    }
+  </style>
+</noscript>
+
+</head>
+
+<body itemscope="" itemtype="http://schema.org/WebPage" lang="en">
+
+  
+  
+    
+  
+
+  <div class="container sidebar-position-left page-post-detail">
+    <div class="headband"></div>
+
+    <header id="header" class="header" itemscope="" itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-wrapper">
+  <div class="site-meta ">
+    
+
+    <div class="custom-logo-site-title">
+      <a href="/" class="brand" rel="start">
+        <span class="logo-line-before"><i></i></span>
+        <span class="site-title">Believe Be:leave</span>
+        <span class="logo-line-after"><i></i></span>
+      </a>
+    </div>
+      
+        <p class="site-subtitle"></p>
+      
+  </div>
+
+  <div class="site-nav-toggle">
+    <button aria-label="Toggle navigation bar">
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+    </button>
+  </div>
+</div>
+
+
+
+
+<nav class="site-nav">
+  
+    <ul id="menu" class="menu">
+      
+        
+        
+        
+          
+          <li class="menu-item menu-item-home">
+    <a href="/" rel="section">
+      <i class="menu-item-icon fa fa-fw fa-home"></i> <br>Home</a>
+  </li>
+        
+        
+        
+          
+          <li class="menu-item menu-item-about">
+    <a href="/about/" rel="section">
+      <i class="menu-item-icon fa fa-fw fa-user"></i> <br>About</a>
+  </li>
+        
+        
+        
+          
+          <li class="menu-item menu-item-tags">
+    <a href="/tags/" rel="section">
+      <i class="menu-item-icon fa fa-fw fa-tags"></i> <br>Tags</a>
+  </li>
+        
+        
+        
+          
+          <li class="menu-item menu-item-archives">
+    <a href="/archives/" rel="section">
+      <i class="menu-item-icon fa fa-fw fa-archive"></i> <br>Archives</a>
+  </li>
+        
+        
+        
+          
+          <li class="menu-item menu-item-(・∀・)">
+    <a href="/music/" rel="section">
+      <i class="menu-item-icon fa fa-fw fa-soundcloud"></i> <br>(・∀・)</a>
+  </li>
+
+      
+      
+    </ul>
+  
+
+  
+
+  
+</nav>
+
+
+
+  
+
+
+
+</div>
+    </header>
+
+    
+
+
+    <main id="main" class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
+            
+
+          
+          <div id="content" class="content">
+            
+
+  <div id="posts" class="posts-expand">
+    
+
+  
+
+  
+  
+  
+
+  
+
+  <article class="post post-type-normal" itemscope="" itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block">
+    <link itemprop="mainEntityOfPage" href="http://mayuyu.io/2018/02/13/Porting-Hikari-to-Swift-Clang/">
+
+    <span hidden itemprop="author" itemscope="" itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="Naville Zhang">
+      <meta itemprop="description" content="">
+      <meta itemprop="image" content="https://en.gravatar.com/userimage/58512415/30071b4d28256e87233b405859ad9b22.jpg?size=512">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope="" itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="Believe Be:leave">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">Porting Hikari to Swift/Clang and Build for Production
+              
+            
+          </h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+
+            
+            
+            
+
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">Posted on</span>
+              
+
+              
+                
+              
+
+              <time title="Created: 2018-02-13 06:03:00" itemprop="dateCreated datePublished" datetime="2018-02-13T06:03:00+00:00">2018-02-13</time>
+            
+
+            
+              
+
+              
+                
+                <span class="post-meta-divider">|</span>
+                
+
+                <span class="post-meta-item-icon">
+                  <i class="fa fa-calendar-check-o"></i>
+                </span>
+                
+                  <span class="post-meta-item-text">Edited on</span>
+                
+                <time title="Modified: 2018-02-23 12:27:36" itemprop="dateModified" datetime="2018-02-23T12:27:36+00:00">2018-02-23</time>
+              
+            
+          </span>
+
+          
+
+          
+            
+          
+
+          
+          
+             <span id="/2018/02/13/Porting-Hikari-to-Swift-Clang/" class="leancloud_visitors" data-flag-title="Porting Hikari to Swift/Clang and Build for Production">
+               <span class="post-meta-divider">|</span>
+               <span class="post-meta-item-icon">
+                 <i class="fa fa-eye"></i>
+               </span>
+               
+                 <span class="post-meta-item-text">Views: </span>
+               
+                 <span class="leancloud-visitors-count"></span>
+             </span>
+          
+
+          
+
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        <link rel="stylesheet" type="text/css" href="https://cdn.jsdelivr.net/hint.css/2.4.1/hint.min.css"><p>Since Apple’s Development Tools contains a bunch of modifications that will probably never see its day in LLVM upstream and Swift contains the latest open-source Apple fork of LLVM at the moment. It’s probably wise to port Hikari to Swift instead of using the upstream.<br><a id="more"></a></p>
+<h1 id="Obtaining-the-source-code"><a href="#Obtaining-the-source-code" class="headerlink" title="Obtaining the source code"></a>Obtaining the source code</h1><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">mkdir swiftsrc \</span><br><span class="line">&amp;&amp; cd swiftsrc \</span><br><span class="line">&amp;&amp; git clone https://github.com/apple/swift.git \</span><br><span class="line">&amp;&amp; ./swift/utils/update-checkout --clone</span><br></pre></td></tr></table></figure>
+<h1 id="Porting-the-Hikari-Core"><a href="#Porting-the-Hikari-Core" class="headerlink" title="Porting the Hikari Core"></a>Porting the Hikari Core</h1><p>Hikari’s core is located at <code>lib/Transforms/Obfuscation</code>, plus headers at <code>include/llvm/Transforms/Obfuscation/</code>.<br><code>HikariObfuscator/Mirai</code> is the modified LLVM Core. So we first need to locate the Swift LLVM Core we just cloned, which is <code>swiftsrc/llvm</code>.  </p>
+<ul>
+<li>Copy <code>Hikari/lib/Transforms/Obfuscation</code> to <code>swiftsrc/llvm/lib/Transforms/Obfuscation</code></li>
+<li>Copy <code>Hikari/include/llvm/Transforms/Obfuscation</code> to <code>swiftsrc/llvm/include/llvm/Transforms/Obfuscation</code></li>
+<li>Edit <code>swiftsrc/llvm/lib/Transforms/LLVMBuild.txt</code>, add <code>Obfuscation</code> at the end of <code>subdirectories</code></li>
+<li>Edit <code>swiftsrc/llvm/lib/Transforms/CMakeLists.txt</code>, add <code>add_subdirectory(Obfuscation)</code> at the end</li>
+<li>Edit <code>swiftsrc/llvm/lib/Transforms/IPO/LLVMBuild.txt</code>, add <code>Obfuscation</code> at the end of <code>required_libraries</code></li>
+<li>Edit <code>swiftsrc/llvm/lib/IPO/PassManagerBuilder.cpp</code>, add <code>#include &quot;llvm/Transforms/Obfuscation/Obfuscation.h&quot;</code> at the end of those <code>#include</code> statements, add <code>MPM.add(createObfuscationPass());</code> at the beginning of <code>void PassManagerBuilder::populateModulePassManager</code></li>
+<li>Edit <code>swiftsrc/llvm/include/llvm/InitializePasses.h</code>, add the following right after the last <code>void initializeXXXX</code> definition:  </li>
+</ul>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line">void initializeStringEncryptionPass(PassRegistry &amp;);</span><br><span class="line">void initializeFunctionCallObfuscatePass(PassRegistry &amp;);</span><br><span class="line">void initializeAntiDebuggingPass(PassRegistry &amp;);</span><br><span class="line">void initializeAntiClassDumpPass(PassRegistry &amp;);</span><br><span class="line">void initializeBogusControlFlowPass(PassRegistry &amp;);</span><br><span class="line">void initializeFlatteningPass(PassRegistry &amp;);</span><br><span class="line">void initializeSplitBasicBlockPass(PassRegistry &amp;);</span><br><span class="line">void initializeSubstitutionPass(PassRegistry &amp;);</span><br><span class="line">void initializeAntiDebuggingPass(PassRegistry &amp;);</span><br><span class="line">void initializeAntiHookPass(PassRegistry &amp;);</span><br><span class="line">void initializeIndirectBranchPass(PassRegistry &amp;);</span><br><span class="line">void initializeObfuscationPass(PassRegistry &amp;);</span><br></pre></td></tr></table></figure>
+<ul>
+<li>Edit <code>swiftsrc/llvm/include/llvm/LinkAllPasses.h</code>, add <code>#include &quot;llvm/Transforms/Obfuscation/Obfuscation.h&quot;</code> at the end of those <code>#include</code> statements,then add the following right after the last <code>(void) llvm::createXXXXX</code> definition:</li>
+</ul>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line">(void) llvm::createStringEncryptionPass();</span><br><span class="line">(void) llvm::createFunctionCallObfuscatePass();</span><br><span class="line">(void) llvm::createAntiClassDumpPass();</span><br><span class="line">(void) llvm::createBogusControlFlowPass();</span><br><span class="line">(void) llvm::createFlatteningPass();</span><br><span class="line">(void) llvm::createSplitBasicBlockPass();</span><br><span class="line">(void) llvm::createSubstitutionPass();</span><br><span class="line">(void) llvm::createAntiDebuggingPass();</span><br><span class="line">(void) llvm::createAntiHookPass();</span><br><span class="line">(void) llvm::createIndirectBranchPass();</span><br><span class="line">(void) llvm::createObfuscationPass();</span><br></pre></td></tr></table></figure>
+<h1 id="Building"><a href="#Building" class="headerlink" title="Building"></a>Building</h1><h2 id="Effortless-Building"><a href="#Effortless-Building" class="headerlink" title="Effortless Building"></a>Effortless Building</h2><p>  Apple provided <code>swiftsrc/swift/utils/build-toolchain</code></p>
+<h2 id="Crafted-Build-Options"><a href="#Crafted-Build-Options" class="headerlink" title="Crafted Build Options"></a>Crafted Build Options</h2><p><code>utils/build-toolchain</code> provides a dumb wrapper around the core build script and doesn’t provide fine tuning. We could it a little to provide new Toolchain name and stuff. I personally replaced the <code>./utils/build-script</code> command to something like this:   </p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">./utils/build-script $&#123;DRY_RUN&#125; --preset-file=&quot;utils/HikariSwift&quot; --preset=&quot;Hikari&quot;\</span><br><span class="line">        install_destdir=&quot;$&#123;SWIFT_INSTALL_DIR&#125;&quot; \</span><br><span class="line">        installable_package=&quot;$&#123;SWIFT_INSTALLABLE_PACKAGE&#125;&quot; \</span><br><span class="line">        install_toolchain_dir=&quot;$&#123;SWIFT_TOOLCHAIN_DIR&#125;&quot; \</span><br><span class="line">        install_symroot=&quot;$&#123;SWIFT_INSTALL_SYMROOT&#125;&quot; \</span><br><span class="line">        symbols_package=&quot;$&#123;SYMBOLS_PACKAGE&#125;&quot; \</span><br></pre></td></tr></table></figure>
+<p>Alone with a hand-crafted preset,stored at <code>utils/HikariSwift</code> :  </p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br></pre></td><td class="code"><pre><span class="line">[preset: Hikari]</span><br><span class="line"></span><br><span class="line">dash-dash</span><br><span class="line">no-assertions</span><br><span class="line">ios</span><br><span class="line">tvos</span><br><span class="line">watchos</span><br><span class="line"></span><br><span class="line">lldb</span><br><span class="line">llbuild</span><br><span class="line">swiftpm</span><br><span class="line">playgroundsupport</span><br><span class="line">release</span><br><span class="line">compiler-vendor=none</span><br><span class="line">dash-dash</span><br><span class="line">lldb-no-debugserver</span><br><span class="line">lldb-use-system-debugserver</span><br><span class="line">extra-cmake-options=-DCMAKE_BUILD_TYPE=MinSizeRel</span><br><span class="line">verbose-build</span><br><span class="line">build-ninja</span><br><span class="line">build-swift-static-stdlib</span><br><span class="line">build-swift-static-sdk-overlay</span><br><span class="line">build-swift-stdlib-unittest-extra</span><br><span class="line">playgroundsupport-build-type=Release</span><br><span class="line"></span><br><span class="line">install-swift</span><br><span class="line">install-lldb</span><br><span class="line">install-llbuild</span><br><span class="line">install-swiftpm</span><br><span class="line">install-playgroundsupport</span><br><span class="line"></span><br><span class="line">install-destdir=%(install_destdir)s</span><br><span class="line"></span><br><span class="line">darwin-install-extract-symbols</span><br><span class="line"></span><br><span class="line"># Path where debug symbols will be installed.</span><br><span class="line">install-symroot=%(install_symroot)s</span><br><span class="line"></span><br><span class="line"># Path where the compiler, the runtime and the standard libraries will be</span><br><span class="line"># installed.</span><br><span class="line">install-prefix=%(install_toolchain_dir)s/usr</span><br><span class="line">skip-test-swift</span><br><span class="line">skip-test-swiftpm</span><br><span class="line">skip-test-llbuild</span><br><span class="line">skip-test-lldb</span><br><span class="line">skip-test-cmark</span><br><span class="line">skip-test-playgroundsupport</span><br><span class="line">swift-install-components=compiler;clang-builtin-headers;stdlib;swift-syntax;sdk-overlay;license;sourcekit-xpc-service;swift-remote-mirror;swift-remote-mirror-headers</span><br><span class="line">llvm-install-components=libclang;libclang-headers</span><br><span class="line"></span><br><span class="line"># Path to the .tar.gz package we would create.</span><br><span class="line">installable-package=%(installable_package)s</span><br><span class="line"></span><br><span class="line"># Path to the .tar.gz symbols package</span><br><span class="line">symbols-package=%(symbols_package)s</span><br><span class="line"></span><br><span class="line"># Info.plist</span><br><span class="line">darwin-toolchain-bundle-identifier=&quot;com.naville.hikariswift&quot;</span><br><span class="line">darwin-toolchain-display-name=&quot;HikariSwift&quot;</span><br><span class="line">darwin-toolchain-display-name-short=&quot;HikariSwift&quot;</span><br><span class="line">darwin-toolchain-name=&quot;HikariSwift&quot;</span><br><span class="line">darwin-toolchain-version=&quot;1.0.0&quot;</span><br><span class="line">darwin-toolchain-alias=&quot;Local&quot;</span><br></pre></td></tr></table></figure>
+<h1 id="Miscellaneous-Notes"><a href="#Miscellaneous-Notes" class="headerlink" title="Miscellaneous Notes"></a>Miscellaneous Notes</h1><ul>
+<li>AAPL didn’t ship LLVM’s libcxx and libcxxabi. You might want to setup those yourself</li>
+<li>Hikari is pretty much untested on Swift projects</li>
+<li>Swift frontend uses a slightly different argument to pass LLVM flags</li>
+</ul>
+
+      
+    </div>
+
+    
+
+    
+    
+    
+
+    
+
+    
+
+    
+
+    <footer class="post-footer">
+      
+        <div class="post-tags">
+          
+            <a href="/tags/LLVM/" rel="tag"># LLVM</a>
+          
+        </div>
+      
+
+      
+      
+      
+
+      
+        <div class="post-nav">
+          <div class="post-nav-next post-nav-item">
+            
+              <a href="/2017/12/27/BogusControlFlowBug/" rel="next" title="Bug in Obfuscator-LLVM's Bogus Control Flow">
+                <i class="fa fa-chevron-left"></i> Bug in Obfuscator-LLVM's Bogus Control Flow
+              </a>
+            
+          </div>
+
+          <span class="post-nav-divider"></span>
+
+          <div class="post-nav-prev post-nav-item">
+            
+              <a href="/2018/06/04/PhiNode-in-LLVM/" rel="prev" title="PhiNode in LLVM">
+                PhiNode in LLVM <i class="fa fa-chevron-right"></i>
+              </a>
+            
+          </div>
+        </div>
+      
+
+      
+      
+    </footer>
+  </div>
+  
+  
+  
+  </article>
+
+
+
+    <div class="post-spread">
+      
+    </div>
+  </div>
+
+
+          </div>
+          
+
+  
+
+
+
+        </div>
+        
+          
+  
+  <div class="sidebar-toggle">
+    <div class="sidebar-toggle-line-wrap">
+      <span class="sidebar-toggle-line sidebar-toggle-line-first"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-middle"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-last"></span>
+    </div>
+  </div>
+
+  <aside id="sidebar" class="sidebar">
+    
+    <div class="sidebar-inner">
+
+      
+
+      
+        <ul class="sidebar-nav motion-element">
+          <li class="sidebar-nav-toc sidebar-nav-active" data-target="post-toc-wrap">
+            Table of Contents
+          </li>
+          <li class="sidebar-nav-overview" data-target="site-overview-wrap">
+            Overview
+          </li>
+        </ul>
+      
+
+      <section class="site-overview-wrap sidebar-panel">
+        <div class="site-overview">
+          <div class="site-author motion-element" itemprop="author" itemscope="" itemtype="http://schema.org/Person">
+            
+              <img class="site-author-image" itemprop="image" src="https://en.gravatar.com/userimage/58512415/30071b4d28256e87233b405859ad9b22.jpg?size=512" alt="Naville Zhang">
+            
+              <p class="site-author-name" itemprop="name">Naville Zhang</p>
+              <p class="site-description motion-element" itemprop="description">それは凄い桜だったが、もう二度と咲くことは無いだろう。</p>
+          </div>
+
+          
+            <nav class="site-state motion-element">
+              
+                <div class="site-state-item site-state-posts">
+                
+                  <a href="/archives/">
+                
+                    <span class="site-state-item-count">18</span>
+                    <span class="site-state-item-name">posts</span>
+                  </a>
+                </div>
+              
+
+              
+
+              
+                
+                
+                <div class="site-state-item site-state-tags">
+                  <a href="/tags/index.html">
+                    
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                    <span class="site-state-item-count">3</span>
+                    <span class="site-state-item-name">tags</span>
+                  </a>
+                </div>
+              
+            </nav>
+          
+
+          
+            <div class="feed-link motion-element">
+              <a href="/rss2.xml" rel="alternate">
+                <i class="fa fa-rss"></i>
+                RSS
+              </a>
+            </div>
+          
+
+          
+            <div class="links-of-author motion-element">
+              
+                <span class="links-of-author-item">
+                  <a href="Link" target="_blank" title="LinkLabel"><i class="fa fa-fw fa-globe"></i>LinkLabel</a>
+                  
+                </span>
+              
+                <span class="links-of-author-item">
+                  <a href="https://github.com/Naville" target="_blank" title="GitHub"><i class="fa fa-fw fa-github"></i>GitHub</a>
+                  
+                </span>
+              
+                <span class="links-of-author-item">
+                  <a href="https://t.me/SummerDream" target="_blank" title="Telegram"><i class="fa fa-fw fa-telegram"></i>Telegram</a>
+                  
+                </span>
+              
+                <span class="links-of-author-item">
+                  <a href="https://steamcommunity.com/id/HashimotoNanami/" target="_blank" title="Steam"><i class="fa fa-fw fa-steam"></i>Steam</a>
+                  
+                </span>
+              
+                <span class="links-of-author-item">
+                  <a href="https://reddit.com/u/NavilleZhang" target="_blank" title="Reddit"><i class="fa fa-fw fa-reddit"></i>Reddit</a>
+                  
+                </span>
+              
+                <span class="links-of-author-item">
+                  <a href="https://keybase.io/navillezhang/pgp_keys.asc" target="_blank" title="PGP"><i class="fa fa-fw fa-key"></i>PGP</a>
+                  
+                </span>
+              
+                <span class="links-of-author-item">
+                  <a href="https://keybase.io/navillezhang" target="_blank" title="Keybase"><i class="fa fa-fw fa-keybase"></i>Keybase</a>
+                  
+                </span>
+              
+            </div>
+          
+
+          
+          
+            <div class="cc-license motion-element" itemprop="license">
+              <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/" class="cc-opacity" target="_blank">
+                <img src="/images/cc-by-nc-sa.svg" alt="Creative Commons">
+              </a>
+            </div>
+          
+
+          
+          
+
+          
+            
+          
+          
+
+        </div>
+      </section>
+
+      
+      <!--noindex-->
+        <section class="post-toc-wrap motion-element sidebar-panel sidebar-panel-active">
+          <div class="post-toc">
+
+            
+              
+            
+
+            
+              <div class="post-toc-content"><ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#Obtaining-the-source-code"><span class="nav-number">1.</span> <span class="nav-text">Obtaining the source code</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#Porting-the-Hikari-Core"><span class="nav-number">2.</span> <span class="nav-text">Porting the Hikari Core</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#Building"><span class="nav-number">3.</span> <span class="nav-text">Building</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#Effortless-Building"><span class="nav-number">3.1.</span> <span class="nav-text">Effortless Building</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#Crafted-Build-Options"><span class="nav-number">3.2.</span> <span class="nav-text">Crafted Build Options</span></a></li></ol></li><li class="nav-item nav-level-1"><a class="nav-link" href="#Miscellaneous-Notes"><span class="nav-number">4.</span> <span class="nav-text">Miscellaneous Notes</span></a></li></ol></div>
+            
+
+          </div>
+        </section>
+      <!--/noindex-->
+      
+
+      
+
+    </div>
+  </aside>
+
+
+        
+      </div>
+    </main>
+
+    <footer id="footer" class="footer">
+      <div class="footer-inner">
+        <div class="copyright">&copy; <span itemprop="copyrightYear">2019</span>
+  <span class="with-love" id="animate">
+    <i class="fa fa-user"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">Naville Zhang</span>
+
+  
+
+  
+</div>
+
+
+
+
+  <div class="powered-by">Powered by <a class="theme-link" target="_blank" href="https://hexo.io">Hexo</a> v3.8.0</div>
+
+
+
+
+
+
+
+
+        
+
+
+
+
+
+
+
+
+        
+      </div>
+    </footer>
+
+    
+      <div class="back-to-top">
+        <i class="fa fa-arrow-up"></i>
+        
+      </div>
+    
+
+    
+
+  </div>
+
+  
+
+<script type="text/javascript">
+  if (Object.prototype.toString.call(window.Promise) !== '[object Function]') {
+    window.Promise = null;
+  }
+</script>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+    <script type="text/javascript" src="/lib/jquery/index.js?v=2.1.3"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/velocity/velocity.min.js?v=1.2.1"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/velocity/velocity.ui.min.js?v=1.2.1"></script>
+  
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/utils.js?v=6.1.0"></script>
+
+  <script type="text/javascript" src="/js/src/motion.js?v=6.1.0"></script>
+
+
+
+  
+  
+
+
+  <script type="text/javascript" src="/js/src/affix.js?v=6.1.0"></script>
+
+  <script type="text/javascript" src="/js/src/schemes/pisces.js?v=6.1.0"></script>
+
+
+
+  
+  <script type="text/javascript" src="/js/src/scrollspy.js?v=6.1.0"></script>
+<script type="text/javascript" src="/js/src/post-details.js?v=6.1.0"></script>
+
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/bootstrap.js?v=6.1.0"></script>
+
+
+
+  
+
+
+
+	
+
+
+
+
+
+  
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+  
+
+  
+  <script src="https://cdn1.lncld.net/static/js/av-core-mini-0.6.4.js"></script>
+  <script>AV.initialize("kliQMAxK2Ue2fOoAGVYmwBJs-gzGzoHsz", "pgVjsYjotIxBrmm4efANflqc");</script>
+  <script>
+    function showTime(Counter) {
+      var query = new AV.Query(Counter);
+      var entries = [];
+      var $visitors = $(".leancloud_visitors");
+
+      $visitors.each(function () {
+        entries.push( $(this).attr("id").trim() );
+      });
+
+      query.containedIn('url', entries);
+      query.find()
+        .done(function (results) {
+          var COUNT_CONTAINER_REF = '.leancloud-visitors-count';
+
+          if (results.length === 0) {
+            $visitors.find(COUNT_CONTAINER_REF).text(0);
+            return;
+          }
+
+          for (var i = 0; i < results.length; i++) {
+            var item = results[i];
+            var url = item.get('url');
+            var time = item.get('time');
+            var element = document.getElementById(url);
+
+            $(element).find(COUNT_CONTAINER_REF).text(time);
+          }
+          for(var i = 0; i < entries.length; i++) {
+            var url = entries[i];
+            var element = document.getElementById(url);
+            var countSpan = $(element).find(COUNT_CONTAINER_REF);
+            if( countSpan.text() == '') {
+              countSpan.text(0);
+            }
+          }
+        })
+        .fail(function (object, error) {
+          console.log("Error: " + error.code + " " + error.message);
+        });
+    }
+
+    function addCount(Counter) {
+      var $visitors = $(".leancloud_visitors");
+      var url = $visitors.attr('id').trim();
+      var title = $visitors.attr('data-flag-title').trim();
+      var query = new AV.Query(Counter);
+
+      query.equalTo("url", url);
+      query.find({
+        success: function(results) {
+          if (results.length > 0) {
+            var counter = results[0];
+            counter.fetchWhenSave(true);
+            counter.increment("time");
+            
+              var $element = $(document.getElementById(url));
+              $element.find('.leancloud-visitors-count').text(counter.get('time'));
+            
+            counter.save(null, {
+              success: function(counter) {
+                
+              },
+              error: function(counter, error) {
+                console.log('Failed to save Visitor num, with error message: ' + error.message);
+              }
+            });
+          } else {
+            
+              var $element = $(document.getElementById(url));
+              $element.find('.leancloud-visitors-count').text('Counter not initialized! See more at console err msg.');
+              console.error('ATTENTION! LeanCloud counter has security bug, see here how to solve it: https://github.com/theme-next/hexo-leancloud-counter-security. \n But you also can use LeanCloud without security, by set \'security\' option to \'false\'.');
+            
+          }
+        },
+        error: function(error) {
+          console.log('Error:' + error.code + " " + error.message);
+        }
+      });
+    }
+
+    $(function() {
+      var Counter = AV.Object.extend("Counter");
+      if ($('.leancloud_visitors').length == 1) {
+        addCount(Counter);
+      } else if ($('.post-title-link').length > 1) {
+        showTime(Counter);
+      }
+    });
+  </script>
+
+
+
+  
+
+  
+
+  
+
+  
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+
+<script src="/live2dw/lib/L2Dwidget.min.js?0c58a1486de42ac6cc1c59c7d98ae887"></script><script>L2Dwidget.init({"pluginRootPath":"live2dw/","pluginJsPath":"lib/","pluginModelPath":"assets/","model":{"jsonPath":"/live2dw/assets/miku.model.json"},"display":{"position":"right","width":150,"height":300},"mobile":{"show":false},"log":false,"tagMode":false});</script></body>
+</html>

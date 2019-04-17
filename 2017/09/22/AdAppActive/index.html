@@ -1,0 +1,977 @@
+<!DOCTYPE html>
+
+
+
+  
+
+
+<html class="theme-next gemini use-motion" lang="en">
+<head><meta name="generator" content="Hexo 3.8.0">
+  <meta charset="UTF-8">
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+
+
+
+
+
+
+
+
+
+
+
+
+<meta http-equiv="Cache-Control" content="no-transform">
+<meta http-equiv="Cache-Control" content="no-siteapp">
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<link href="/lib/font-awesome/css/font-awesome.min.css?v=4.6.2" rel="stylesheet" type="text/css">
+
+<link href="/css/main.css?v=6.1.0" rel="stylesheet" type="text/css">
+
+
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png?v=6.1.0">
+
+
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png?v=6.1.0">
+
+
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png?v=6.1.0">
+
+
+  <link rel="mask-icon" href="/images/logo.svg?v=6.1.0" color="#222">
+
+
+
+
+
+
+
+
+
+<script type="text/javascript" id="hexo.configurations">
+  var NexT = window.NexT || {};
+  var CONFIG = {
+    root: '/',
+    scheme: 'Gemini',
+    version: '6.1.0',
+    sidebar: {"position":"left","display":"post","offset":12,"b2t":false,"scrollpercent":false,"onmobile":false},
+    fancybox: false,
+    fastclick: false,
+    lazyload: false,
+    tabs: true,
+    motion: {"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},
+    algolia: {
+      applicationID: '',
+      apiKey: '',
+      indexName: '',
+      hits: {"per_page":10},
+      labels: {"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}
+    }
+  };
+</script>
+
+
+  
+
+
+
+
+  <meta name="description" content="During my random browsing of PPHelper, China’s largest “assistant” that provids download of cracked softwares as well as servingas a 2nd AppStore itself, we found one of the games contains a strange A">
+<meta name="keywords" content="RE">
+<meta property="og:type" content="article">
+<meta property="og:title" content="A Short Analysis of AdAppActive">
+<meta property="og:url" content="http://mayuyu.io/2017/09/22/AdAppActive/index.html">
+<meta property="og:site_name" content="Believe Be:leave">
+<meta property="og:description" content="During my random browsing of PPHelper, China’s largest “assistant” that provids download of cracked softwares as well as servingas a 2nd AppStore itself, we found one of the games contains a strange A">
+<meta property="og:locale" content="en">
+<meta property="og:image" content="http://mayuyu.io/2017/09/22/AdAppActive/MG.png">
+<meta property="og:image" content="http://mayuyu.io/2017/09/22/AdAppActive/IOKit.png">
+<meta property="og:updated_time" content="2017-11-09T08:04:46.000Z">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="A Short Analysis of AdAppActive">
+<meta name="twitter:description" content="During my random browsing of PPHelper, China’s largest “assistant” that provids download of cracked softwares as well as servingas a 2nd AppStore itself, we found one of the games contains a strange A">
+<meta name="twitter:image" content="http://mayuyu.io/2017/09/22/AdAppActive/MG.png">
+
+
+
+  <link rel="alternate" href="/rss2.xml" title="Believe Be:leave" type="application/atom+xml">
+
+
+
+
+  <link rel="canonical" href="http://mayuyu.io/2017/09/22/AdAppActive/">
+
+
+
+<script type="text/javascript" id="page.configurations">
+  CONFIG.page = {
+    sidebar: "",
+  };
+</script>
+
+  <title>A Short Analysis of AdAppActive | Believe Be:leave</title>
+  
+
+
+
+
+<script async src="https://www.googletagmanager.com/gtag/js?id=UA-111741589-1"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'UA-111741589-1');
+</script>
+
+
+
+
+
+
+  <noscript>
+  <style type="text/css">
+    .use-motion .motion-element,
+    .use-motion .brand,
+    .use-motion .menu-item,
+    .sidebar-inner,
+    .use-motion .post-block,
+    .use-motion .pagination,
+    .use-motion .comments,
+    .use-motion .post-header,
+    .use-motion .post-body,
+    .use-motion .collection-title { opacity: initial; }
+
+    .use-motion .logo,
+    .use-motion .site-title,
+    .use-motion .site-subtitle {
+      opacity: initial;
+      top: initial;
+    }
+
+    .use-motion {
+      .logo-line-before i { left: initial; }
+      .logo-line-after i { right: initial; }
+    }
+  </style>
+</noscript>
+
+</head>
+
+<body itemscope="" itemtype="http://schema.org/WebPage" lang="en">
+
+  
+  
+    
+  
+
+  <div class="container sidebar-position-left page-post-detail">
+    <div class="headband"></div>
+
+    <header id="header" class="header" itemscope="" itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-wrapper">
+  <div class="site-meta ">
+    
+
+    <div class="custom-logo-site-title">
+      <a href="/" class="brand" rel="start">
+        <span class="logo-line-before"><i></i></span>
+        <span class="site-title">Believe Be:leave</span>
+        <span class="logo-line-after"><i></i></span>
+      </a>
+    </div>
+      
+        <p class="site-subtitle"></p>
+      
+  </div>
+
+  <div class="site-nav-toggle">
+    <button aria-label="Toggle navigation bar">
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+    </button>
+  </div>
+</div>
+
+
+
+
+<nav class="site-nav">
+  
+    <ul id="menu" class="menu">
+      
+        
+        
+        
+          
+          <li class="menu-item menu-item-home">
+    <a href="/" rel="section">
+      <i class="menu-item-icon fa fa-fw fa-home"></i> <br>Home</a>
+  </li>
+        
+        
+        
+          
+          <li class="menu-item menu-item-about">
+    <a href="/about/" rel="section">
+      <i class="menu-item-icon fa fa-fw fa-user"></i> <br>About</a>
+  </li>
+        
+        
+        
+          
+          <li class="menu-item menu-item-tags">
+    <a href="/tags/" rel="section">
+      <i class="menu-item-icon fa fa-fw fa-tags"></i> <br>Tags</a>
+  </li>
+        
+        
+        
+          
+          <li class="menu-item menu-item-archives">
+    <a href="/archives/" rel="section">
+      <i class="menu-item-icon fa fa-fw fa-archive"></i> <br>Archives</a>
+  </li>
+        
+        
+        
+          
+          <li class="menu-item menu-item-(・∀・)">
+    <a href="/music/" rel="section">
+      <i class="menu-item-icon fa fa-fw fa-soundcloud"></i> <br>(・∀・)</a>
+  </li>
+
+      
+      
+    </ul>
+  
+
+  
+
+  
+</nav>
+
+
+
+  
+
+
+
+</div>
+    </header>
+
+    
+
+
+    <main id="main" class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
+            
+
+          
+          <div id="content" class="content">
+            
+
+  <div id="posts" class="posts-expand">
+    
+
+  
+
+  
+  
+  
+
+  
+
+  <article class="post post-type-normal" itemscope="" itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block">
+    <link itemprop="mainEntityOfPage" href="http://mayuyu.io/2017/09/22/AdAppActive/">
+
+    <span hidden itemprop="author" itemscope="" itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="Naville Zhang">
+      <meta itemprop="description" content="">
+      <meta itemprop="image" content="https://en.gravatar.com/userimage/58512415/30071b4d28256e87233b405859ad9b22.jpg?size=512">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope="" itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="Believe Be:leave">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">A Short Analysis of AdAppActive
+              
+            
+          </h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+
+            
+            
+            
+
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">Posted on</span>
+              
+
+              
+                
+              
+
+              <time title="Created: 2017-09-22 15:52:54" itemprop="dateCreated datePublished" datetime="2017-09-22T15:52:54+01:00">2017-09-22</time>
+            
+
+            
+              
+
+              
+                
+                <span class="post-meta-divider">|</span>
+                
+
+                <span class="post-meta-item-icon">
+                  <i class="fa fa-calendar-check-o"></i>
+                </span>
+                
+                  <span class="post-meta-item-text">Edited on</span>
+                
+                <time title="Modified: 2017-11-09 08:04:46" itemprop="dateModified" datetime="2017-11-09T08:04:46+00:00">2017-11-09</time>
+              
+            
+          </span>
+
+          
+
+          
+            
+          
+
+          
+          
+             <span id="/2017/09/22/AdAppActive/" class="leancloud_visitors" data-flag-title="A Short Analysis of AdAppActive">
+               <span class="post-meta-divider">|</span>
+               <span class="post-meta-item-icon">
+                 <i class="fa fa-eye"></i>
+               </span>
+               
+                 <span class="post-meta-item-text">Views: </span>
+               
+                 <span class="leancloud-visitors-count"></span>
+             </span>
+          
+
+          
+
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        <link rel="stylesheet" type="text/css" href="https://cdn.jsdelivr.net/hint.css/2.4.1/hint.min.css"><p>During my random browsing of PPHelper, China’s largest “assistant” that provids download of cracked softwares as well as serving<br>as a 2nd AppStore itself, we found one of the games contains a strange Adware not seen in its AppStore Version.</p>
+<p>Overall it’s a pretty boring case since the native calls are not obfuscated<br><a id="more"></a><br><a href="AdAppActive.framework/AdAppActive">Sample</a><br>Running <code>codesign -dvvv</code> yields the following information:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br></pre></td><td class="code"><pre><span class="line">Identifier=dujj.com.AdAppActive</span><br><span class="line">Format=bundle with Mach-O universal (armv7 arm64)</span><br><span class="line">CodeDirectory v=20200 size=1424 flags=0x0(none) hashes=64+3 location=embedded</span><br><span class="line">OSPlatform=37</span><br><span class="line">OSSDKVersion=590592</span><br><span class="line">OSVersionMin=458752</span><br><span class="line">Hash type=sha1 size=20</span><br><span class="line">CandidateCDHash sha1=84318837fcc69584ccf6ab194011e707691e8240</span><br><span class="line">Hash choices=sha1</span><br><span class="line">Page size=4096</span><br><span class="line">CDHash=84318837fcc69584ccf6ab194011e707691e8240</span><br><span class="line">Signature size=4378</span><br><span class="line">Authority=iPhone Distribution: Shandong Meibang Information Technology Co., Ltd.</span><br><span class="line">Authority=Apple Worldwide Developer Relations Certification Authority</span><br><span class="line">Authority=Apple Root CA</span><br><span class="line">Signed Time=2017年1月12日 上午2:37:38</span><br><span class="line">Info.plist entries=21</span><br><span class="line">TeamIdentifier=KQE7R93SMR</span><br><span class="line">Sealed Resources version=2 rules=12 files=2</span><br><span class="line">Internal requirements count=1 size=208</span><br></pre></td></tr></table></figure></p>
+<p>Apparently a cracked app will have its CSBlobs removed so now we can be sure that this application has been resigned, which is strange considering this is published on “Applications for Jailbroken Devices”</p>
+<p>Running <code>otool -l</code> against the main binary also yields a new load command:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">Load command 57</span><br><span class="line">          cmd LC_LOAD_DYLIB</span><br><span class="line">      cmdsize 80</span><br><span class="line">         name @executable_path/AdAppActive.framework/AdAppActive (offset 24)</span><br><span class="line">   time stamp 2 Thu Jan  1 01:00:02 1970</span><br><span class="line">      current version 1.0.0</span><br><span class="line">compatibility version 1.0.0</span><br></pre></td></tr></table></figure></p>
+<h1 id="The-Binary-Itself"><a href="#The-Binary-Itself" class="headerlink" title="The Binary Itself"></a>The Binary Itself</h1><p>The main functionality of AdAppActive took place in <code>-[PPNiubilitySimpleFactory createClientInfo]</code>, starting from the EntryPoint and in turn calls <code>[TRPPNiubilityManager share]</code></p>
+<p>Inside <code>-[PPNiubilitySimpleFactory createClientInfo]</code>, it calls:  </p>
+<ul>
+<li><code>[PPNiubilityConfiguration sharedConfiguration]</code></li>
+<li><code>[UIDevice isJailBreak]</code></li>
+<li><code>[PPReachability reachabilityForLocalWiFi]</code></li>
+</ul>
+<p>to collect various device information and upload them to <code>http://applog.uc.cn:9081/collect</code></p>
+<h1 id="Dangerous-Behaviours"><a href="#Dangerous-Behaviours" class="headerlink" title="Dangerous Behaviours"></a>Dangerous Behaviours</h1><h2 id="UDID"><a href="#UDID" class="headerlink" title="UDID"></a>UDID</h2><p>  <code>-[PPNiubilitySimpleFactory createClientInfo]</code> calls <code>+[UnitlTool uuid]</code> which in turn abuses <code>MGCopyAnswer</code> in libMobileGestalt to upload the UDID of the device, although theoratically this private API is no longer usable without proper entitlements, and our samples seems to be missing those entitlements, it only contains:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br></pre></td><td class="code"><pre><span class="line">  &lt;?xml version=&quot;1.0&quot; encoding=&quot;UTF-8&quot;?&gt;</span><br><span class="line">&lt;!DOCTYPE plist PUBLIC &quot;-//Apple//DTD PLIST 1.0//EN&quot; &quot;http://www.apple.com/DTDs/PropertyList-1.0.dtd&quot;&gt;</span><br><span class="line">&lt;plist version=&quot;1.0&quot;&gt;</span><br><span class="line">&lt;dict&gt;</span><br><span class="line">        &lt;key&gt;application-identifier&lt;/key&gt;</span><br><span class="line">        &lt;string&gt;K5X9BM5TQ2.com.yinhan.SpaceHunterPP.IPad-260064-6&lt;/string&gt;</span><br><span class="line">        &lt;key&gt;com.apple.developer.team-identifier&lt;/key&gt;</span><br><span class="line">        &lt;string&gt;K5X9BM5TQ2&lt;/string&gt;</span><br><span class="line">        &lt;key&gt;get-task-allow&lt;/key&gt;</span><br><span class="line">        &lt;false/&gt;</span><br><span class="line">        &lt;key&gt;keychain-access-groups&lt;/key&gt;</span><br><span class="line">        &lt;array&gt;</span><br><span class="line">                &lt;string&gt;K5X9BM5TQ2.com.yinhan.SpaceHunterPP.IPad-260064-6&lt;/string&gt;</span><br><span class="line">        &lt;/array&gt;</span><br><span class="line">&lt;/dict&gt;</span><br><span class="line">&lt;/plist&gt;</span><br></pre></td></tr></table></figure></p>
+<p><img src="MG.png" alt=""></p>
+<h2 id="IOKit"><a href="#IOKit" class="headerlink" title="IOKit"></a>IOKit</h2><p>  Various methods in the class <code>UIDeviceAdditions</code> seems to be abusing IOKit and sysctl to fetch ECID/SerialNumber/MAC Address/Platform.<br>  This is also no longer usable in sandbox since around iOS 9.3.X<br><img src="IOKit.png" alt=""></p>
+<h2 id="Various-Thoughts"><a href="#Various-Thoughts" class="headerlink" title="Various Thoughts"></a>Various Thoughts</h2><p>  Judging by:</p>
+<ul>
+<li>The history of this kind of “assistants” and their commercial mode</li>
+<li>The sample is marking its <code>promotion channel/APP ID</code> to the server</li>
+<li>The original developer hasn’t started a lawsuit yet</li>
+<li>I’ve also examined another 12 games on PPHelper and none of them contains AdAppActive</li>
+<li><p>IPAs of this exact game found elsewhere doesn’t contain AdAppActive as well</p>
+<p>I think it’s safe to assume the developer is involved in this mess. I’ve already emailed the developer regarding this</p>
+</li>
+</ul>
+<h2 id="TODO"><a href="#TODO" class="headerlink" title="TODO"></a>TODO</h2><ul>
+<li>Dynamic binary instrumention</li>
+<li>Report this to AAPL’s product security team to invalidate KQE7R93SMR</li>
+</ul>
+
+      
+    </div>
+
+    
+
+    
+    
+    
+
+    
+
+    
+
+    
+
+    <footer class="post-footer">
+      
+        <div class="post-tags">
+          
+            <a href="/tags/RE/" rel="tag"># RE</a>
+          
+        </div>
+      
+
+      
+      
+      
+
+      
+        <div class="post-nav">
+          <div class="post-nav-next post-nav-item">
+            
+              <a href="/2017/07/12/Exploring-LLVM-ExecutionEngine/" rel="next" title="Exploring LLVM ExecutionEngine">
+                <i class="fa fa-chevron-left"></i> Exploring LLVM ExecutionEngine
+              </a>
+            
+          </div>
+
+          <span class="post-nav-divider"></span>
+
+          <div class="post-nav-prev post-nav-item">
+            
+              <a href="/2017/11/08/NeowizProtocols/" rel="prev" title="Neowiz Protocols">
+                Neowiz Protocols <i class="fa fa-chevron-right"></i>
+              </a>
+            
+          </div>
+        </div>
+      
+
+      
+      
+    </footer>
+  </div>
+  
+  
+  
+  </article>
+
+
+
+    <div class="post-spread">
+      
+    </div>
+  </div>
+
+
+          </div>
+          
+
+  
+
+
+
+        </div>
+        
+          
+  
+  <div class="sidebar-toggle">
+    <div class="sidebar-toggle-line-wrap">
+      <span class="sidebar-toggle-line sidebar-toggle-line-first"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-middle"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-last"></span>
+    </div>
+  </div>
+
+  <aside id="sidebar" class="sidebar">
+    
+    <div class="sidebar-inner">
+
+      
+
+      
+        <ul class="sidebar-nav motion-element">
+          <li class="sidebar-nav-toc sidebar-nav-active" data-target="post-toc-wrap">
+            Table of Contents
+          </li>
+          <li class="sidebar-nav-overview" data-target="site-overview-wrap">
+            Overview
+          </li>
+        </ul>
+      
+
+      <section class="site-overview-wrap sidebar-panel">
+        <div class="site-overview">
+          <div class="site-author motion-element" itemprop="author" itemscope="" itemtype="http://schema.org/Person">
+            
+              <img class="site-author-image" itemprop="image" src="https://en.gravatar.com/userimage/58512415/30071b4d28256e87233b405859ad9b22.jpg?size=512" alt="Naville Zhang">
+            
+              <p class="site-author-name" itemprop="name">Naville Zhang</p>
+              <p class="site-description motion-element" itemprop="description">それは凄い桜だったが、もう二度と咲くことは無いだろう。</p>
+          </div>
+
+          
+            <nav class="site-state motion-element">
+              
+                <div class="site-state-item site-state-posts">
+                
+                  <a href="/archives/">
+                
+                    <span class="site-state-item-count">18</span>
+                    <span class="site-state-item-name">posts</span>
+                  </a>
+                </div>
+              
+
+              
+
+              
+                
+                
+                <div class="site-state-item site-state-tags">
+                  <a href="/tags/index.html">
+                    
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                    <span class="site-state-item-count">3</span>
+                    <span class="site-state-item-name">tags</span>
+                  </a>
+                </div>
+              
+            </nav>
+          
+
+          
+            <div class="feed-link motion-element">
+              <a href="/rss2.xml" rel="alternate">
+                <i class="fa fa-rss"></i>
+                RSS
+              </a>
+            </div>
+          
+
+          
+            <div class="links-of-author motion-element">
+              
+                <span class="links-of-author-item">
+                  <a href="Link" target="_blank" title="LinkLabel"><i class="fa fa-fw fa-globe"></i>LinkLabel</a>
+                  
+                </span>
+              
+                <span class="links-of-author-item">
+                  <a href="https://github.com/Naville" target="_blank" title="GitHub"><i class="fa fa-fw fa-github"></i>GitHub</a>
+                  
+                </span>
+              
+                <span class="links-of-author-item">
+                  <a href="https://t.me/SummerDream" target="_blank" title="Telegram"><i class="fa fa-fw fa-telegram"></i>Telegram</a>
+                  
+                </span>
+              
+                <span class="links-of-author-item">
+                  <a href="https://steamcommunity.com/id/HashimotoNanami/" target="_blank" title="Steam"><i class="fa fa-fw fa-steam"></i>Steam</a>
+                  
+                </span>
+              
+                <span class="links-of-author-item">
+                  <a href="https://reddit.com/u/NavilleZhang" target="_blank" title="Reddit"><i class="fa fa-fw fa-reddit"></i>Reddit</a>
+                  
+                </span>
+              
+                <span class="links-of-author-item">
+                  <a href="https://keybase.io/navillezhang/pgp_keys.asc" target="_blank" title="PGP"><i class="fa fa-fw fa-key"></i>PGP</a>
+                  
+                </span>
+              
+                <span class="links-of-author-item">
+                  <a href="https://keybase.io/navillezhang" target="_blank" title="Keybase"><i class="fa fa-fw fa-keybase"></i>Keybase</a>
+                  
+                </span>
+              
+            </div>
+          
+
+          
+          
+            <div class="cc-license motion-element" itemprop="license">
+              <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/" class="cc-opacity" target="_blank">
+                <img src="/images/cc-by-nc-sa.svg" alt="Creative Commons">
+              </a>
+            </div>
+          
+
+          
+          
+
+          
+            
+          
+          
+
+        </div>
+      </section>
+
+      
+      <!--noindex-->
+        <section class="post-toc-wrap motion-element sidebar-panel sidebar-panel-active">
+          <div class="post-toc">
+
+            
+              
+            
+
+            
+              <div class="post-toc-content"><ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#The-Binary-Itself"><span class="nav-number">1.</span> <span class="nav-text">The Binary Itself</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#Dangerous-Behaviours"><span class="nav-number">2.</span> <span class="nav-text">Dangerous Behaviours</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#UDID"><span class="nav-number">2.1.</span> <span class="nav-text">UDID</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#IOKit"><span class="nav-number">2.2.</span> <span class="nav-text">IOKit</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#Various-Thoughts"><span class="nav-number">2.3.</span> <span class="nav-text">Various Thoughts</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#TODO"><span class="nav-number">2.4.</span> <span class="nav-text">TODO</span></a></li></ol></li></ol></div>
+            
+
+          </div>
+        </section>
+      <!--/noindex-->
+      
+
+      
+
+    </div>
+  </aside>
+
+
+        
+      </div>
+    </main>
+
+    <footer id="footer" class="footer">
+      <div class="footer-inner">
+        <div class="copyright">&copy; <span itemprop="copyrightYear">2019</span>
+  <span class="with-love" id="animate">
+    <i class="fa fa-user"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">Naville Zhang</span>
+
+  
+
+  
+</div>
+
+
+
+
+  <div class="powered-by">Powered by <a class="theme-link" target="_blank" href="https://hexo.io">Hexo</a> v3.8.0</div>
+
+
+
+
+
+
+
+
+        
+
+
+
+
+
+
+
+
+        
+      </div>
+    </footer>
+
+    
+      <div class="back-to-top">
+        <i class="fa fa-arrow-up"></i>
+        
+      </div>
+    
+
+    
+
+  </div>
+
+  
+
+<script type="text/javascript">
+  if (Object.prototype.toString.call(window.Promise) !== '[object Function]') {
+    window.Promise = null;
+  }
+</script>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+    <script type="text/javascript" src="/lib/jquery/index.js?v=2.1.3"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/velocity/velocity.min.js?v=1.2.1"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/velocity/velocity.ui.min.js?v=1.2.1"></script>
+  
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/utils.js?v=6.1.0"></script>
+
+  <script type="text/javascript" src="/js/src/motion.js?v=6.1.0"></script>
+
+
+
+  
+  
+
+
+  <script type="text/javascript" src="/js/src/affix.js?v=6.1.0"></script>
+
+  <script type="text/javascript" src="/js/src/schemes/pisces.js?v=6.1.0"></script>
+
+
+
+  
+  <script type="text/javascript" src="/js/src/scrollspy.js?v=6.1.0"></script>
+<script type="text/javascript" src="/js/src/post-details.js?v=6.1.0"></script>
+
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/bootstrap.js?v=6.1.0"></script>
+
+
+
+  
+
+
+
+	
+
+
+
+
+
+  
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+  
+
+  
+  <script src="https://cdn1.lncld.net/static/js/av-core-mini-0.6.4.js"></script>
+  <script>AV.initialize("kliQMAxK2Ue2fOoAGVYmwBJs-gzGzoHsz", "pgVjsYjotIxBrmm4efANflqc");</script>
+  <script>
+    function showTime(Counter) {
+      var query = new AV.Query(Counter);
+      var entries = [];
+      var $visitors = $(".leancloud_visitors");
+
+      $visitors.each(function () {
+        entries.push( $(this).attr("id").trim() );
+      });
+
+      query.containedIn('url', entries);
+      query.find()
+        .done(function (results) {
+          var COUNT_CONTAINER_REF = '.leancloud-visitors-count';
+
+          if (results.length === 0) {
+            $visitors.find(COUNT_CONTAINER_REF).text(0);
+            return;
+          }
+
+          for (var i = 0; i < results.length; i++) {
+            var item = results[i];
+            var url = item.get('url');
+            var time = item.get('time');
+            var element = document.getElementById(url);
+
+            $(element).find(COUNT_CONTAINER_REF).text(time);
+          }
+          for(var i = 0; i < entries.length; i++) {
+            var url = entries[i];
+            var element = document.getElementById(url);
+            var countSpan = $(element).find(COUNT_CONTAINER_REF);
+            if( countSpan.text() == '') {
+              countSpan.text(0);
+            }
+          }
+        })
+        .fail(function (object, error) {
+          console.log("Error: " + error.code + " " + error.message);
+        });
+    }
+
+    function addCount(Counter) {
+      var $visitors = $(".leancloud_visitors");
+      var url = $visitors.attr('id').trim();
+      var title = $visitors.attr('data-flag-title').trim();
+      var query = new AV.Query(Counter);
+
+      query.equalTo("url", url);
+      query.find({
+        success: function(results) {
+          if (results.length > 0) {
+            var counter = results[0];
+            counter.fetchWhenSave(true);
+            counter.increment("time");
+            
+              var $element = $(document.getElementById(url));
+              $element.find('.leancloud-visitors-count').text(counter.get('time'));
+            
+            counter.save(null, {
+              success: function(counter) {
+                
+              },
+              error: function(counter, error) {
+                console.log('Failed to save Visitor num, with error message: ' + error.message);
+              }
+            });
+          } else {
+            
+              var $element = $(document.getElementById(url));
+              $element.find('.leancloud-visitors-count').text('Counter not initialized! See more at console err msg.');
+              console.error('ATTENTION! LeanCloud counter has security bug, see here how to solve it: https://github.com/theme-next/hexo-leancloud-counter-security. \n But you also can use LeanCloud without security, by set \'security\' option to \'false\'.');
+            
+          }
+        },
+        error: function(error) {
+          console.log('Error:' + error.code + " " + error.message);
+        }
+      });
+    }
+
+    $(function() {
+      var Counter = AV.Object.extend("Counter");
+      if ($('.leancloud_visitors').length == 1) {
+        addCount(Counter);
+      } else if ($('.post-title-link').length > 1) {
+        showTime(Counter);
+      }
+    });
+  </script>
+
+
+
+  
+
+  
+
+  
+
+  
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+
+<script src="/live2dw/lib/L2Dwidget.min.js?0c58a1486de42ac6cc1c59c7d98ae887"></script><script>L2Dwidget.init({"pluginRootPath":"live2dw/","pluginJsPath":"lib/","pluginModelPath":"assets/","model":{"jsonPath":"/live2dw/assets/miku.model.json"},"display":{"position":"right","width":150,"height":300},"mobile":{"show":false},"log":false,"tagMode":false});</script></body>
+</html>

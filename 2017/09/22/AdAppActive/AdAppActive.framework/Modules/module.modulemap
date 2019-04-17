@@ -1,0 +1,6 @@
+framework module AdAppActive {
+  umbrella header "AdAppActive.h"
+
+  export *
+  module * { export * }
+}

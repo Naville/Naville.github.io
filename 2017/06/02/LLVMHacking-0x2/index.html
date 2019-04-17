@@ -1,0 +1,940 @@
+<!DOCTYPE html>
+
+
+
+  
+
+
+<html class="theme-next gemini use-motion" lang="en">
+<head><meta name="generator" content="Hexo 3.8.0">
+  <meta charset="UTF-8">
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+
+
+
+
+
+
+
+
+
+
+
+
+<meta http-equiv="Cache-Control" content="no-transform">
+<meta http-equiv="Cache-Control" content="no-siteapp">
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<link href="/lib/font-awesome/css/font-awesome.min.css?v=4.6.2" rel="stylesheet" type="text/css">
+
+<link href="/css/main.css?v=6.1.0" rel="stylesheet" type="text/css">
+
+
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png?v=6.1.0">
+
+
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png?v=6.1.0">
+
+
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png?v=6.1.0">
+
+
+  <link rel="mask-icon" href="/images/logo.svg?v=6.1.0" color="#222">
+
+
+
+
+
+
+
+
+
+<script type="text/javascript" id="hexo.configurations">
+  var NexT = window.NexT || {};
+  var CONFIG = {
+    root: '/',
+    scheme: 'Gemini',
+    version: '6.1.0',
+    sidebar: {"position":"left","display":"post","offset":12,"b2t":false,"scrollpercent":false,"onmobile":false},
+    fancybox: false,
+    fastclick: false,
+    lazyload: false,
+    tabs: true,
+    motion: {"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},
+    algolia: {
+      applicationID: '',
+      apiKey: '',
+      indexName: '',
+      hits: {"per_page":10},
+      labels: {"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}
+    }
+  };
+</script>
+
+
+  
+
+
+
+
+  <meta name="description" content="This is part of my planned LLVM-Hacking blog posts, intended for new compiler hobbists like myself  PoC codes are available at https://github.com/Naville/LLVM-Hacking-Tut-Source.  The sample codes h">
+<meta name="keywords" content="LLVM">
+<meta property="og:type" content="article">
+<meta property="og:title" content="LLVM Hacking-0x2 Manipulating GlobalVariable and Obfuscate ObjC Control Flow">
+<meta property="og:url" content="http://mayuyu.io/2017/06/02/LLVMHacking-0x2/index.html">
+<meta property="og:site_name" content="Believe Be:leave">
+<meta property="og:description" content="This is part of my planned LLVM-Hacking blog posts, intended for new compiler hobbists like myself  PoC codes are available at https://github.com/Naville/LLVM-Hacking-Tut-Source.  The sample codes h">
+<meta property="og:locale" content="en">
+<meta property="og:updated_time" content="2018-03-13T02:39:27.000Z">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="LLVM Hacking-0x2 Manipulating GlobalVariable and Obfuscate ObjC Control Flow">
+<meta name="twitter:description" content="This is part of my planned LLVM-Hacking blog posts, intended for new compiler hobbists like myself  PoC codes are available at https://github.com/Naville/LLVM-Hacking-Tut-Source.  The sample codes h">
+
+
+
+  <link rel="alternate" href="/rss2.xml" title="Believe Be:leave" type="application/atom+xml">
+
+
+
+
+  <link rel="canonical" href="http://mayuyu.io/2017/06/02/LLVMHacking-0x2/">
+
+
+
+<script type="text/javascript" id="page.configurations">
+  CONFIG.page = {
+    sidebar: "",
+  };
+</script>
+
+  <title>LLVM Hacking-0x2 Manipulating GlobalVariable and Obfuscate ObjC Control Flow | Believe Be:leave</title>
+  
+
+
+
+
+<script async src="https://www.googletagmanager.com/gtag/js?id=UA-111741589-1"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'UA-111741589-1');
+</script>
+
+
+
+
+
+
+  <noscript>
+  <style type="text/css">
+    .use-motion .motion-element,
+    .use-motion .brand,
+    .use-motion .menu-item,
+    .sidebar-inner,
+    .use-motion .post-block,
+    .use-motion .pagination,
+    .use-motion .comments,
+    .use-motion .post-header,
+    .use-motion .post-body,
+    .use-motion .collection-title { opacity: initial; }
+
+    .use-motion .logo,
+    .use-motion .site-title,
+    .use-motion .site-subtitle {
+      opacity: initial;
+      top: initial;
+    }
+
+    .use-motion {
+      .logo-line-before i { left: initial; }
+      .logo-line-after i { right: initial; }
+    }
+  </style>
+</noscript>
+
+</head>
+
+<body itemscope="" itemtype="http://schema.org/WebPage" lang="en">
+
+  
+  
+    
+  
+
+  <div class="container sidebar-position-left page-post-detail">
+    <div class="headband"></div>
+
+    <header id="header" class="header" itemscope="" itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-wrapper">
+  <div class="site-meta ">
+    
+
+    <div class="custom-logo-site-title">
+      <a href="/" class="brand" rel="start">
+        <span class="logo-line-before"><i></i></span>
+        <span class="site-title">Believe Be:leave</span>
+        <span class="logo-line-after"><i></i></span>
+      </a>
+    </div>
+      
+        <p class="site-subtitle"></p>
+      
+  </div>
+
+  <div class="site-nav-toggle">
+    <button aria-label="Toggle navigation bar">
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+    </button>
+  </div>
+</div>
+
+
+
+
+<nav class="site-nav">
+  
+    <ul id="menu" class="menu">
+      
+        
+        
+        
+          
+          <li class="menu-item menu-item-home">
+    <a href="/" rel="section">
+      <i class="menu-item-icon fa fa-fw fa-home"></i> <br>Home</a>
+  </li>
+        
+        
+        
+          
+          <li class="menu-item menu-item-about">
+    <a href="/about/" rel="section">
+      <i class="menu-item-icon fa fa-fw fa-user"></i> <br>About</a>
+  </li>
+        
+        
+        
+          
+          <li class="menu-item menu-item-tags">
+    <a href="/tags/" rel="section">
+      <i class="menu-item-icon fa fa-fw fa-tags"></i> <br>Tags</a>
+  </li>
+        
+        
+        
+          
+          <li class="menu-item menu-item-archives">
+    <a href="/archives/" rel="section">
+      <i class="menu-item-icon fa fa-fw fa-archive"></i> <br>Archives</a>
+  </li>
+        
+        
+        
+          
+          <li class="menu-item menu-item-(・∀・)">
+    <a href="/music/" rel="section">
+      <i class="menu-item-icon fa fa-fw fa-soundcloud"></i> <br>(・∀・)</a>
+  </li>
+
+      
+      
+    </ul>
+  
+
+  
+
+  
+</nav>
+
+
+
+  
+
+
+
+</div>
+    </header>
+
+    
+
+
+    <main id="main" class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
+            
+
+          
+          <div id="content" class="content">
+            
+
+  <div id="posts" class="posts-expand">
+    
+
+  
+
+  
+  
+  
+
+  
+
+  <article class="post post-type-normal" itemscope="" itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block">
+    <link itemprop="mainEntityOfPage" href="http://mayuyu.io/2017/06/02/LLVMHacking-0x2/">
+
+    <span hidden itemprop="author" itemscope="" itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="Naville Zhang">
+      <meta itemprop="description" content="">
+      <meta itemprop="image" content="https://en.gravatar.com/userimage/58512415/30071b4d28256e87233b405859ad9b22.jpg?size=512">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope="" itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="Believe Be:leave">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">LLVM Hacking-0x2 Manipulating GlobalVariable and Obfuscate ObjC Control Flow
+              
+            
+          </h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+
+            
+            
+            
+
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">Posted on</span>
+              
+
+              
+                
+              
+
+              <time title="Created: 2017-06-02 08:34:18" itemprop="dateCreated datePublished" datetime="2017-06-02T08:34:18+01:00">2017-06-02</time>
+            
+
+            
+              
+
+              
+                
+                <span class="post-meta-divider">|</span>
+                
+
+                <span class="post-meta-item-icon">
+                  <i class="fa fa-calendar-check-o"></i>
+                </span>
+                
+                  <span class="post-meta-item-text">Edited on</span>
+                
+                <time title="Modified: 2018-03-13 02:39:27" itemprop="dateModified" datetime="2018-03-13T02:39:27+00:00">2018-03-13</time>
+              
+            
+          </span>
+
+          
+
+          
+            
+          
+
+          
+          
+             <span id="/2017/06/02/LLVMHacking-0x2/" class="leancloud_visitors" data-flag-title="LLVM Hacking-0x2 Manipulating GlobalVariable and Obfuscate ObjC Control Flow">
+               <span class="post-meta-divider">|</span>
+               <span class="post-meta-item-icon">
+                 <i class="fa fa-eye"></i>
+               </span>
+               
+                 <span class="post-meta-item-text">Views: </span>
+               
+                 <span class="leancloud-visitors-count"></span>
+             </span>
+          
+
+          
+
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        <link rel="stylesheet" type="text/css" href="https://cdn.jsdelivr.net/hint.css/2.4.1/hint.min.css"><p>  This is part of my planned LLVM-Hacking blog posts, intended for new compiler hobbists like myself<br>  <del>PoC codes are available at <a href="https://github.com/Naville/LLVM-Hacking-Tut-Source" target="_blank" rel="noopener">https://github.com/Naville/LLVM-Hacking-Tut-Source</a></del>.<br>  The sample codes have been removed due to inaccuracy and stuff. A more robust Obfuscator implementation is open-source at <a href="https://github.com/HikariObfuscator/Hikari" target="_blank" rel="noopener">HikariObfuscator/Hikari</a><br>  <a id="more"></a></p>
+<p>In our second chapter I’m gonna demostrate some basic usage of <code>GlobalVariable</code> and using these techniques to build a pass that will obfuscate ObjC control flow.</p>
+<p>In order to achieve this, we’d like to hide <code>SEL</code> and <code>Class</code> references. First let’s compile some sample ObjC codes into LLVM IR to have a general idea about what happened under the hood.</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">#import <span class="meta-string">&lt;Foundation/Foundation.h&gt;</span></span></span><br><span class="line"><span class="function"><span class="keyword">int</span> <span class="title">main</span><span class="params">()</span></span>&#123;</span><br><span class="line">  [[NSMutableData <span class="keyword">new</span>] increaseLengthBy:<span class="number">20</span>];</span><br><span class="line">  <span class="keyword">return</span> <span class="number">0</span>;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>generates the following LLVM IR:</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br></pre></td><td class="code"><pre><span class="line">target datalayout = &quot;e-m:o-i64:64-f80:128-n8:16:32:64-S128&quot;</span><br><span class="line">target triple = &quot;x86_64-apple-macosx10.12.0&quot;</span><br><span class="line"></span><br><span class="line">%0 = type opaque</span><br><span class="line">%struct._class_t = type &#123; %struct._class_t*, %struct._class_t*, %struct._objc_cache*, i8* (i8*, i8*)**, %struct._class_ro_t* &#125;</span><br><span class="line">%struct._objc_cache = type opaque</span><br><span class="line">%struct._class_ro_t = type &#123; i32, i32, i32, i8*, i8*, %struct.__method_list_t*, %struct._objc_protocol_list*, %struct._ivar_list_t*, i8*, %struct._prop_list_t* &#125;</span><br><span class="line">%struct.__method_list_t = type &#123; i32, i32, [0 x %struct._objc_method] &#125;</span><br><span class="line">%struct._objc_method = type &#123; i8*, i8*, i8* &#125;</span><br><span class="line">%struct._objc_protocol_list = type &#123; i64, [0 x %struct._protocol_t*] &#125;</span><br><span class="line">%struct._protocol_t = type &#123; i8*, i8*, %struct._objc_protocol_list*, %struct.__method_list_t*, %struct.__method_list_t*, %struct.__method_list_t*, %struct.__method_list_t*, %struct._prop_list_t*, i32, i32, i8**, i8*, %struct._prop_list_t* &#125;</span><br><span class="line">%struct._ivar_list_t = type &#123; i32, i32, [0 x %struct._ivar_t] &#125;</span><br><span class="line">%struct._ivar_t = type &#123; i64*, i8*, i8*, i32, i32 &#125;</span><br><span class="line">%struct._prop_list_t = type &#123; i32, i32, [0 x %struct._prop_t] &#125;</span><br><span class="line">%struct._prop_t = type &#123; i8*, i8* &#125;</span><br><span class="line"></span><br><span class="line">@&quot;OBJC_CLASS_$_NSMutableData&quot; = external global %struct._class_t</span><br><span class="line">@&quot;OBJC_CLASSLIST_REFERENCES_$_&quot; = private global %struct._class_t* @&quot;OBJC_CLASS_$_NSMutableData&quot;, section &quot;__DATA, __objc_classrefs, regular, no_dead_strip&quot;, align 8</span><br><span class="line">@OBJC_METH_VAR_NAME_ = private global [4 x i8] c&quot;new\00&quot;, section &quot;__TEXT,__objc_methname,cstring_literals&quot;, align 1</span><br><span class="line">@OBJC_SELECTOR_REFERENCES_ = private externally_initialized global i8* getelementptr inbounds ([4 x i8], [4 x i8]* @OBJC_METH_VAR_NAME_, i32 0, i32 0), section &quot;__DATA, __objc_selrefs, literal_pointers, no_dead_strip&quot;, align 8</span><br><span class="line">@OBJC_METH_VAR_NAME_.1 = private global [18 x i8] c&quot;increaseLengthBy:\00&quot;, section &quot;__TEXT,__objc_methname,cstring_literals&quot;, align 1</span><br><span class="line">@OBJC_SELECTOR_REFERENCES_.2 = private externally_initialized global i8* getelementptr inbounds ([18 x i8], [18 x i8]* @OBJC_METH_VAR_NAME_.1, i32 0, i32 0), section &quot;__DATA, __objc_selrefs, literal_pointers, no_dead_strip&quot;, align 8</span><br><span class="line">@llvm.compiler.used = appending global [5 x i8*] [i8* bitcast (%struct._class_t** @&quot;OBJC_CLASSLIST_REFERENCES_$_&quot; to i8*), i8* getelementptr inbounds ([4 x i8], [4 x i8]* @OBJC_METH_VAR_NAME_, i32 0, i32 0), i8* bitcast (i8** @OBJC_SELECTOR_REFERENCES_ to i8*), i8* getelementptr inbounds ([18 x i8], [18 x i8]* @OBJC_METH_VAR_NAME_.1, i32 0, i32 0), i8* bitcast (i8** @OBJC_SELECTOR_REFERENCES_.2 to i8*)], section &quot;llvm.metadata&quot;</span><br><span class="line"></span><br><span class="line">; Function Attrs: norecurse ssp uwtable</span><br><span class="line">define i32 @main() #0 &#123;</span><br><span class="line">  %1 = alloca i32, align 4</span><br><span class="line">  store i32 0, i32* %1, align 4</span><br><span class="line">  %2 = load %struct._class_t*, %struct._class_t** @&quot;OBJC_CLASSLIST_REFERENCES_$_&quot;, align 8</span><br><span class="line">  %3 = load i8*, i8** @OBJC_SELECTOR_REFERENCES_, align 8, !invariant.load !7</span><br><span class="line">  %4 = bitcast %struct._class_t* %2 to i8*</span><br><span class="line">  %5 = call i8* bitcast (i8* (i8*, i8*, ...)* @objc_msgSend to i8* (i8*, i8*)*)(i8* %4, i8* %3)</span><br><span class="line">  %6 = bitcast i8* %5 to %0*</span><br><span class="line">  %7 = load i8*, i8** @OBJC_SELECTOR_REFERENCES_.2, align 8, !invariant.load !7</span><br><span class="line">  %8 = bitcast %0* %6 to i8*</span><br><span class="line">  call void bitcast (i8* (i8*, i8*, ...)* @objc_msgSend to void (i8*, i8*, i64)*)(i8* %8, i8* %7, i64 20)</span><br><span class="line">  ret i32 0</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">; Function Attrs: nonlazybind</span><br><span class="line">declare i8* @objc_msgSend(i8*, i8*, ...) #1</span><br><span class="line"></span><br><span class="line">attributes #0 = &#123; norecurse ssp uwtable &quot;correctly-rounded-divide-sqrt-fp-math&quot;=&quot;false&quot; &quot;disable-tail-calls&quot;=&quot;false&quot; &quot;less-precise-fpmad&quot;=&quot;false&quot; &quot;no-frame-pointer-elim&quot;=&quot;true&quot; &quot;no-frame-pointer-elim-non-leaf&quot; &quot;no-infs-fp-math&quot;=&quot;false&quot; &quot;no-jump-tables&quot;=&quot;false&quot; &quot;no-nans-fp-math&quot;=&quot;false&quot; &quot;no-signed-zeros-fp-math&quot;=&quot;false&quot; &quot;stack-protector-buffer-size&quot;=&quot;8&quot; &quot;target-cpu&quot;=&quot;penryn&quot; &quot;target-features&quot;=&quot;+cx16,+fxsr,+mmx,+sse,+sse2,+sse3,+sse4.1,+ssse3,+x87&quot; &quot;unsafe-fp-math&quot;=&quot;false&quot; &quot;use-soft-float&quot;=&quot;false&quot; &#125;</span><br><span class="line">attributes #1 = &#123; nonlazybind &#125;</span><br><span class="line"></span><br><span class="line">!llvm.module.flags = !&#123;!0, !1, !2, !3, !4, !5&#125;</span><br><span class="line">!llvm.ident = !&#123;!6&#125;</span><br><span class="line"></span><br><span class="line">!0 = !&#123;i32 1, !&quot;Objective-C Version&quot;, i32 2&#125;</span><br><span class="line">!1 = !&#123;i32 1, !&quot;Objective-C Image Info Version&quot;, i32 0&#125;</span><br><span class="line">!2 = !&#123;i32 1, !&quot;Objective-C Image Info Section&quot;, !&quot;__DATA, __objc_imageinfo, regular, no_dead_strip&quot;&#125;</span><br><span class="line">!3 = !&#123;i32 4, !&quot;Objective-C Garbage Collection&quot;, i32 0&#125;</span><br><span class="line">!4 = !&#123;i32 1, !&quot;Objective-C Class Properties&quot;, i32 64&#125;</span><br><span class="line">!5 = !&#123;i32 1, !&quot;PIC Level&quot;, i32 2&#125;</span><br><span class="line">!6 = !&#123;!&quot;Apple LLVM version 8.1.0 (clang-802.0.42)&quot;&#125;</span><br><span class="line">!7 = !&#123;&#125;</span><br></pre></td></tr></table></figure>
+<p>Note the two <code>LoadInst</code> referencing <code>OBJC_CLASSLIST_REFERENCES_</code> and <code>OBJC_SELECTOR_REFERENCES_</code>.<br>Now let’s walk away from LLVM Core for a while and focus on the frontend,<code>Clang</code>, you can find a unofficial web-friendly mirror here:<br><a href="https://github.com/llvm-mirror/clang/blob/b0c092f298d809acb814934c0ef593104d633713/lib/CodeGen/CGObjCMac.cpp" target="_blank" rel="noopener">https://github.com/llvm-mirror/clang/blob/b0c092f298d809acb814934c0ef593104d633713/lib/CodeGen/CGObjCMac.cpp</a></p>
+<p>Search for <code>OBJC_CLASSLIST_REFERENCES</code> brings us to Line 7125, which shows GV <code>OBJC_CLASSLIST_REFERENCES</code> is constructed as:</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">Entry = <span class="keyword">new</span> llvm::GlobalVariable(CGM.getModule(), ObjCTypes.ClassnfABIPtrTy,</span><br><span class="line">                                     <span class="literal">false</span>, llvm::GlobalValue::PrivateLinkage,</span><br><span class="line">                                     ClassGV, <span class="string">"OBJC_CLASSLIST_REFERENCES_$_"</span>);</span><br></pre></td></tr></table></figure>
+<p>which corresponds to the following <code>GlobalVariable</code> constructor:</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">GlobalVariable (Module &amp;M, Type *Ty, <span class="keyword">bool</span> isConstant, LinkageTypes Linkage,</span><br><span class="line">Constant *Initializer, <span class="keyword">const</span> Twine &amp;Name=<span class="string">""</span>, GlobalVariable   *InsertBefore=<span class="literal">nullptr</span>,</span><br><span class="line">ThreadLocalMode=NotThreadLocal, <span class="keyword">unsigned</span> AddressSpace=<span class="number">0</span>,   <span class="keyword">bool</span> isExternallyInitialized=<span class="literal">false</span>)</span><br></pre></td></tr></table></figure>
+<p>Now we can write a simple LLVM Pass:</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">...OMITTED...</span><br><span class="line">      <span class="keyword">for</span>(<span class="keyword">auto</span> G=M.getGlobalList().begin();G!=M.getGlobalList().end();G++)&#123;</span><br><span class="line">        GlobalVariable &amp;GV=*G;</span><br><span class="line">			errs()&lt;&lt;GV.getName()&lt;&lt;<span class="string">"\n"</span>;</span><br><span class="line">        &#125;</span><br><span class="line">...OMITTED...</span><br></pre></td></tr></table></figure>
+<p>prints out:</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br></pre></td><td class="code"><pre><span class="line">llvm.compiler.used</span><br><span class="line">OBJC_CLASSLIST_REFERENCES_$_  	</span><br><span class="line">OBJC_METH_VAR_NAME_</span><br><span class="line">OBJC_SELECTOR_REFERENCES_</span><br><span class="line">OBJC_METH_VAR_NAME_.1</span><br><span class="line">OBJC_SELECTOR_REFERENCES_.2</span><br><span class="line">OBJC_CLASS_$_NSMutableData</span><br><span class="line">OBJC_METACLASS_$_Utils</span><br><span class="line">OBJC_METACLASS_$_NSObject</span><br><span class="line">_objc_empty_cache</span><br><span class="line">l_OBJC_METACLASS_RO_$_Utils</span><br><span class="line">OBJC_CLASS_NAME_</span><br><span class="line">l_OBJC_$_CLASS_METHODS_Utils</span><br><span class="line">OBJC_METH_VAR_NAME_.2</span><br><span class="line">OBJC_METH_VAR_TYPE_</span><br><span class="line">_unnamed_cfstring_</span><br><span class="line">__CFConstantStringClassReference</span><br><span class="line">.str</span><br><span class="line">OBJC_CLASS_$_Utils</span><br><span class="line">OBJC_CLASS_$_NSObject</span><br><span class="line">l_OBJC_CLASS_RO_$_Utils</span><br><span class="line">OBJC_LABEL_CLASS_$</span><br></pre></td></tr></table></figure>
+<p>Now we can improve our sample pass a little bit to collect <code>OBJC_CLASSLIST_REFERENCES_</code> ‘s initializers:</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line">...OMITTED...</span><br><span class="line">      <span class="keyword">for</span>(<span class="keyword">auto</span> G=M.getGlobalList().begin();G!=M.getGlobalList().end();G++)&#123;</span><br><span class="line">        GlobalVariable &amp;GV=*G;</span><br><span class="line">			<span class="keyword">if</span> (GV.getName().str().find(<span class="string">"OBJC_CLASSLIST_REFERENCES"</span>)==<span class="number">0</span>)&#123;</span><br><span class="line">          <span class="built_in">string</span> className=GV.getInitializer ()-&gt;getName();</span><br><span class="line">          errs()&lt;&lt;className&lt;&lt;<span class="string">"\n"</span>;</span><br><span class="line">        &#125;</span><br><span class="line">        &#125;</span><br><span class="line">...OMITTED...</span><br></pre></td></tr></table></figure>
+<p>yielding <code>OBJC_CLASS_$_NSMutableData</code> , strip out the prefix<code>className.replace(className.find(&quot;OBJC_CLASS_$_&quot;),strlen(&quot;OBJC_CLASS_$_&quot;),&quot;&quot;);</code> and we now have the Class Name:<code>NSMutableData</code></p>
+<p>At last, we want to find all IRs referencing to our <code>GV</code> and replace them with a <code>objc_getClass()</code> call.<br>We can first obtain the original Instruction, through GV iteration,construct the Function,using IRBuilder to build CallInst and finally replace uses</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">for</span>(<span class="keyword">auto</span> G=M.global_begin(); G!=M.global_end(); G++) &#123;</span><br><span class="line">        GlobalVariable &amp;GV=*G;</span><br><span class="line">        <span class="keyword">if</span> (GV.getName().str().find(<span class="string">"OBJC_CLASSLIST_REFERENCES"</span>)==<span class="number">0</span>) &#123;</span><br><span class="line">                <span class="keyword">if</span>(GV.hasInitializer()) &#123;</span><br><span class="line">                        <span class="built_in">string</span> className=GV.getInitializer ()-&gt;getName();</span><br><span class="line">                        className.replace(className.find(<span class="string">"OBJC_CLASS_$_"</span>),<span class="built_in">strlen</span>(<span class="string">"OBJC_CLASS_$_"</span>),<span class="string">""</span>);</span><br><span class="line">                        <span class="keyword">for</span>(<span class="keyword">auto</span> U=GV.user_begin (); U!=GV.user_end(); U++) &#123;</span><br><span class="line">                                <span class="keyword">if</span> (Instruction* I = dyn_cast&lt;Instruction&gt;(*U)) &#123;</span><br><span class="line">                                        IRBuilder&lt;&gt; builder(I);</span><br><span class="line">                                        FunctionType *objc_getClass_type =FunctionType::get(I-&gt;getType(), &#123;Type::getInt8PtrTy(M.getContext())&#125;, <span class="literal">false</span>);</span><br><span class="line">                                        Function *objc_getClass_Func = cast&lt;Function&gt;(M.getOrInsertFunction(<span class="string">"objc_getClass"</span>, objc_getClass_type ) );</span><br><span class="line">                                        Value* newClassName=builder.CreateGlobalStringPtr(StringRef(className));</span><br><span class="line">                                        CallInst* CI=builder.CreateCall(objc_getClass_Func,&#123;newClassName&#125;);</span><br><span class="line">                                        I-&gt;replaceAllUsesWith(CI);</span><br><span class="line">                                        I-&gt;eraseFromParent ();</span><br><span class="line">                                &#125;</span><br><span class="line">                        &#125;</span><br><span class="line">                &#125;</span><br><span class="line">        &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+      
+    </div>
+
+    
+
+    
+    
+    
+
+    
+
+    
+
+    
+
+    <footer class="post-footer">
+      
+        <div class="post-tags">
+          
+            <a href="/tags/LLVM/" rel="tag"># LLVM</a>
+          
+        </div>
+      
+
+      
+      
+      
+
+      
+        <div class="post-nav">
+          <div class="post-nav-next post-nav-item">
+            
+              <a href="/2017/06/01/LLVMHacking-0x1/" rel="next" title="LLVM Hacking-0x1 Symbol Renaming">
+                <i class="fa fa-chevron-left"></i> LLVM Hacking-0x1 Symbol Renaming
+              </a>
+            
+          </div>
+
+          <span class="post-nav-divider"></span>
+
+          <div class="post-nav-prev post-nav-item">
+            
+              <a href="/2017/06/26/HookingMGCopyAnswerLikeABoss/" rel="prev" title="Hooking MGCopyAnswer Like A Boss">
+                Hooking MGCopyAnswer Like A Boss <i class="fa fa-chevron-right"></i>
+              </a>
+            
+          </div>
+        </div>
+      
+
+      
+      
+    </footer>
+  </div>
+  
+  
+  
+  </article>
+
+
+
+    <div class="post-spread">
+      
+    </div>
+  </div>
+
+
+          </div>
+          
+
+  
+
+
+
+        </div>
+        
+          
+  
+  <div class="sidebar-toggle">
+    <div class="sidebar-toggle-line-wrap">
+      <span class="sidebar-toggle-line sidebar-toggle-line-first"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-middle"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-last"></span>
+    </div>
+  </div>
+
+  <aside id="sidebar" class="sidebar">
+    
+    <div class="sidebar-inner">
+
+      
+
+      
+
+      <section class="site-overview-wrap sidebar-panel sidebar-panel-active">
+        <div class="site-overview">
+          <div class="site-author motion-element" itemprop="author" itemscope="" itemtype="http://schema.org/Person">
+            
+              <img class="site-author-image" itemprop="image" src="https://en.gravatar.com/userimage/58512415/30071b4d28256e87233b405859ad9b22.jpg?size=512" alt="Naville Zhang">
+            
+              <p class="site-author-name" itemprop="name">Naville Zhang</p>
+              <p class="site-description motion-element" itemprop="description">それは凄い桜だったが、もう二度と咲くことは無いだろう。</p>
+          </div>
+
+          
+            <nav class="site-state motion-element">
+              
+                <div class="site-state-item site-state-posts">
+                
+                  <a href="/archives/">
+                
+                    <span class="site-state-item-count">18</span>
+                    <span class="site-state-item-name">posts</span>
+                  </a>
+                </div>
+              
+
+              
+
+              
+                
+                
+                <div class="site-state-item site-state-tags">
+                  <a href="/tags/index.html">
+                    
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                    <span class="site-state-item-count">3</span>
+                    <span class="site-state-item-name">tags</span>
+                  </a>
+                </div>
+              
+            </nav>
+          
+
+          
+            <div class="feed-link motion-element">
+              <a href="/rss2.xml" rel="alternate">
+                <i class="fa fa-rss"></i>
+                RSS
+              </a>
+            </div>
+          
+
+          
+            <div class="links-of-author motion-element">
+              
+                <span class="links-of-author-item">
+                  <a href="Link" target="_blank" title="LinkLabel"><i class="fa fa-fw fa-globe"></i>LinkLabel</a>
+                  
+                </span>
+              
+                <span class="links-of-author-item">
+                  <a href="https://github.com/Naville" target="_blank" title="GitHub"><i class="fa fa-fw fa-github"></i>GitHub</a>
+                  
+                </span>
+              
+                <span class="links-of-author-item">
+                  <a href="https://t.me/SummerDream" target="_blank" title="Telegram"><i class="fa fa-fw fa-telegram"></i>Telegram</a>
+                  
+                </span>
+              
+                <span class="links-of-author-item">
+                  <a href="https://steamcommunity.com/id/HashimotoNanami/" target="_blank" title="Steam"><i class="fa fa-fw fa-steam"></i>Steam</a>
+                  
+                </span>
+              
+                <span class="links-of-author-item">
+                  <a href="https://reddit.com/u/NavilleZhang" target="_blank" title="Reddit"><i class="fa fa-fw fa-reddit"></i>Reddit</a>
+                  
+                </span>
+              
+                <span class="links-of-author-item">
+                  <a href="https://keybase.io/navillezhang/pgp_keys.asc" target="_blank" title="PGP"><i class="fa fa-fw fa-key"></i>PGP</a>
+                  
+                </span>
+              
+                <span class="links-of-author-item">
+                  <a href="https://keybase.io/navillezhang" target="_blank" title="Keybase"><i class="fa fa-fw fa-keybase"></i>Keybase</a>
+                  
+                </span>
+              
+            </div>
+          
+
+          
+          
+            <div class="cc-license motion-element" itemprop="license">
+              <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/" class="cc-opacity" target="_blank">
+                <img src="/images/cc-by-nc-sa.svg" alt="Creative Commons">
+              </a>
+            </div>
+          
+
+          
+          
+
+          
+            
+          
+          
+
+        </div>
+      </section>
+
+      
+
+      
+
+    </div>
+  </aside>
+
+
+        
+      </div>
+    </main>
+
+    <footer id="footer" class="footer">
+      <div class="footer-inner">
+        <div class="copyright">&copy; <span itemprop="copyrightYear">2019</span>
+  <span class="with-love" id="animate">
+    <i class="fa fa-user"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">Naville Zhang</span>
+
+  
+
+  
+</div>
+
+
+
+
+  <div class="powered-by">Powered by <a class="theme-link" target="_blank" href="https://hexo.io">Hexo</a> v3.8.0</div>
+
+
+
+
+
+
+
+
+        
+
+
+
+
+
+
+
+
+        
+      </div>
+    </footer>
+
+    
+      <div class="back-to-top">
+        <i class="fa fa-arrow-up"></i>
+        
+      </div>
+    
+
+    
+
+  </div>
+
+  
+
+<script type="text/javascript">
+  if (Object.prototype.toString.call(window.Promise) !== '[object Function]') {
+    window.Promise = null;
+  }
+</script>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+    <script type="text/javascript" src="/lib/jquery/index.js?v=2.1.3"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/velocity/velocity.min.js?v=1.2.1"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/velocity/velocity.ui.min.js?v=1.2.1"></script>
+  
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/utils.js?v=6.1.0"></script>
+
+  <script type="text/javascript" src="/js/src/motion.js?v=6.1.0"></script>
+
+
+
+  
+  
+
+
+  <script type="text/javascript" src="/js/src/affix.js?v=6.1.0"></script>
+
+  <script type="text/javascript" src="/js/src/schemes/pisces.js?v=6.1.0"></script>
+
+
+
+  
+  <script type="text/javascript" src="/js/src/scrollspy.js?v=6.1.0"></script>
+<script type="text/javascript" src="/js/src/post-details.js?v=6.1.0"></script>
+
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/bootstrap.js?v=6.1.0"></script>
+
+
+
+  
+
+
+
+	
+
+
+
+
+
+  
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+  
+
+  
+  <script src="https://cdn1.lncld.net/static/js/av-core-mini-0.6.4.js"></script>
+  <script>AV.initialize("kliQMAxK2Ue2fOoAGVYmwBJs-gzGzoHsz", "pgVjsYjotIxBrmm4efANflqc");</script>
+  <script>
+    function showTime(Counter) {
+      var query = new AV.Query(Counter);
+      var entries = [];
+      var $visitors = $(".leancloud_visitors");
+
+      $visitors.each(function () {
+        entries.push( $(this).attr("id").trim() );
+      });
+
+      query.containedIn('url', entries);
+      query.find()
+        .done(function (results) {
+          var COUNT_CONTAINER_REF = '.leancloud-visitors-count';
+
+          if (results.length === 0) {
+            $visitors.find(COUNT_CONTAINER_REF).text(0);
+            return;
+          }
+
+          for (var i = 0; i < results.length; i++) {
+            var item = results[i];
+            var url = item.get('url');
+            var time = item.get('time');
+            var element = document.getElementById(url);
+
+            $(element).find(COUNT_CONTAINER_REF).text(time);
+          }
+          for(var i = 0; i < entries.length; i++) {
+            var url = entries[i];
+            var element = document.getElementById(url);
+            var countSpan = $(element).find(COUNT_CONTAINER_REF);
+            if( countSpan.text() == '') {
+              countSpan.text(0);
+            }
+          }
+        })
+        .fail(function (object, error) {
+          console.log("Error: " + error.code + " " + error.message);
+        });
+    }
+
+    function addCount(Counter) {
+      var $visitors = $(".leancloud_visitors");
+      var url = $visitors.attr('id').trim();
+      var title = $visitors.attr('data-flag-title').trim();
+      var query = new AV.Query(Counter);
+
+      query.equalTo("url", url);
+      query.find({
+        success: function(results) {
+          if (results.length > 0) {
+            var counter = results[0];
+            counter.fetchWhenSave(true);
+            counter.increment("time");
+            
+              var $element = $(document.getElementById(url));
+              $element.find('.leancloud-visitors-count').text(counter.get('time'));
+            
+            counter.save(null, {
+              success: function(counter) {
+                
+              },
+              error: function(counter, error) {
+                console.log('Failed to save Visitor num, with error message: ' + error.message);
+              }
+            });
+          } else {
+            
+              var $element = $(document.getElementById(url));
+              $element.find('.leancloud-visitors-count').text('Counter not initialized! See more at console err msg.');
+              console.error('ATTENTION! LeanCloud counter has security bug, see here how to solve it: https://github.com/theme-next/hexo-leancloud-counter-security. \n But you also can use LeanCloud without security, by set \'security\' option to \'false\'.');
+            
+          }
+        },
+        error: function(error) {
+          console.log('Error:' + error.code + " " + error.message);
+        }
+      });
+    }
+
+    $(function() {
+      var Counter = AV.Object.extend("Counter");
+      if ($('.leancloud_visitors').length == 1) {
+        addCount(Counter);
+      } else if ($('.post-title-link').length > 1) {
+        showTime(Counter);
+      }
+    });
+  </script>
+
+
+
+  
+
+  
+
+  
+
+  
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+
+<script src="/live2dw/lib/L2Dwidget.min.js?0c58a1486de42ac6cc1c59c7d98ae887"></script><script>L2Dwidget.init({"pluginRootPath":"live2dw/","pluginJsPath":"lib/","pluginModelPath":"assets/","model":{"jsonPath":"/live2dw/assets/miku.model.json"},"display":{"position":"right","width":150,"height":300},"mobile":{"show":false},"log":false,"tagMode":false});</script></body>
+</html>
