@@ -1,0 +1,547 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 6.2.0">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/css/main.css">
+
+
+<link rel="stylesheet" href="/lib/font-awesome/css/all.min.css">
+
+<script id="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"mayuyu.io","root":"/","scheme":"Muse","version":"7.8.0","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"appID":"HT3QRSC0S0","apiKey":"6b52a937d0aeede45d25ff630f9534b1","indexName":"Search","hits":{"per_page":10},"labels":{"input_placeholder":"Search","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":false,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}}};
+  </script>
+
+  <meta name="description" content="I finally had enough fun with building LLVM Transform Obfuscation Passes and decided to build a VMProtect-Like obfuscation mechanism.">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Cross-Platform VMProtect with LLVM">
+<meta property="og:url" content="https://mayuyu.io/2018/08/08/Cross-Platform-VMProtect-with-LLVM/index.html">
+<meta property="og:site_name" content="Believe Be:leave">
+<meta property="og:description" content="I finally had enough fun with building LLVM Transform Obfuscation Passes and decided to build a VMProtect-Like obfuscation mechanism.">
+<meta property="og:locale" content="en_US">
+<meta property="og:image" content="https://mayuyu.io/2018/08/08/Cross-Platform-VMProtect-with-LLVM/VMP.png">
+<meta property="article:published_time" content="2018-08-07T16:00:00.000Z">
+<meta property="article:modified_time" content="2022-12-29T06:12:21.640Z">
+<meta property="article:author" content="Naville">
+<meta property="article:tag" content="Security">
+<meta property="article:tag" content="Obfuscation">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://mayuyu.io/2018/08/08/Cross-Platform-VMProtect-with-LLVM/VMP.png">
+
+<link rel="canonical" href="https://mayuyu.io/2018/08/08/Cross-Platform-VMProtect-with-LLVM/">
+
+
+<script id="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'en'
+  };
+</script>
+
+  <title>Cross-Platform VMProtect with LLVM | Believe Be:leave</title>
+  
+
+
+
+
+
+
+  <noscript>
+  <style>
+  .use-motion .brand,
+  .use-motion .menu-item,
+  .sidebar-inner,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript>
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
+
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="Toggle navigation bar">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <span class="logo-line-before"><i></i></span>
+      <h1 class="site-title">Believe Be:leave</h1>
+      <span class="logo-line-after"><i></i></span>
+    </a>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+        <i class="fa fa-search fa-fw fa-lg"></i>
+    </div>
+  </div>
+</div>
+
+
+
+
+<nav class="site-nav">
+  <ul id="menu" class="main-menu menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/" rel="section"><i class="fa fa-home fa-fw"></i>Home</a>
+
+  </li>
+        <li class="menu-item menu-item-about">
+
+    <a href="/about/" rel="section"><i class="fa fa-user fa-fw"></i>About</a>
+
+  </li>
+        <li class="menu-item menu-item-tags">
+
+    <a href="/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>Tags</a>
+
+  </li>
+        <li class="menu-item menu-item-categories">
+
+    <a href="/categories/" rel="section"><i class="fa fa-th fa-fw"></i>Categories</a>
+
+  </li>
+        <li class="menu-item menu-item-archives">
+
+    <a href="/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>Archives</a>
+
+  </li>
+      <li class="menu-item menu-item-search">
+        <a role="button" class="popup-trigger"><i class="fa fa-search fa-fw"></i>Search
+        </a>
+      </li>
+  </ul>
+</nav>
+
+
+
+  <div class="search-pop-overlay">
+    <div class="popup search-popup">
+        <div class="search-header">
+  <span class="search-icon">
+    <i class="fa fa-search"></i>
+  </span>
+  <div class="search-input-container"></div>
+  <span class="popup-btn-close">
+    <i class="fa fa-times-circle"></i>
+  </span>
+</div>
+<div class="algolia-results">
+  <div id="algolia-stats"></div>
+  <div id="algolia-hits"></div>
+  <div id="algolia-pagination" class="algolia-pagination"></div>
+</div>
+
+      
+    </div>
+  </div>
+
+</div>
+    </header>
+
+    
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
+
+          <div class="content post posts-expand">
+            
+
+    
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
+    <link itemprop="mainEntityOfPage" href="https://mayuyu.io/2018/08/08/Cross-Platform-VMProtect-with-LLVM/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="Naville">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="Believe Be:leave">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          Cross-Platform VMProtect with LLVM
+        </h1>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">Posted on</span>
+
+              <time title="Created: 2018-08-08 00:00:00" itemprop="dateCreated datePublished" datetime="2018-08-08T00:00:00+08:00">2018-08-08</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">Edited on</span>
+                <time title="Modified: 2022-12-29 14:12:21" itemprop="dateModified" datetime="2022-12-29T14:12:21+08:00">2022-12-29</time>
+              </span>
+
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <p>I finally had enough fun with building LLVM Transform Obfuscation
+Passes and decided to build a VMProtect-Like obfuscation mechanism.
+<span id="more"></span></p>
+<p>Below is the emulated CPU’s control flow graph. Extra protection
+disabled, otherwise you won’t even see this graph.</p>
+<img src="/2018/08/08/Cross-Platform-VMProtect-with-LLVM/VMP.png" class="" title="Ouch">
+<h1 id="current-implementations">Current Implementations</h1>
+<h2 id="assembly-interpreter">Assembly Interpreter</h2>
+<ul>
+<li>Mostly used design pattern</li>
+<li>Takes a large amount of time to add support for a new platform</li>
+<li>Not Fast Enough</li>
+<li>Hard to maintain/debug</li>
+</ul>
+<h2 id="llvm-ir-interpreter">LLVM IR Interpreter</h2>
+<ul>
+<li>Similar to Assembly Interpreter, expect more trouble to solve. For
+example using reg2mem to resolve PhiNodes</li>
+<li>Bridging with native code. Global Variable/Local Memory Address
+mapping</li>
+<li>var-arg support</li>
+<li>Emulating stack?</li>
+</ul>
+<h2 id="high-level-language-interpreter">High-Level Language
+Interpreter</h2>
+<ul>
+<li>Not safe enough(Dump out string and it’s over.)</li>
+<li>JIT implementation requires a full compile chain available at
+runtime.</li>
+<li>Raw Interpreter Implementation needs to handle structure coercion in
+order to properly support foreign function calling[1]</li>
+</ul>
+<h2 id="hikaris-implementation">Hikari’s implementation</h2>
+<p>In order to achieve cross platform with minimum effort, Hikari’s VM
+Protection emulates a specialized CPU with full fetch-decode-execute
+cycle.</p>
+<h3 id="supporting-llvm-instructions">Supporting LLVM Instructions</h3>
+<ul>
+<li>Cast Instructions are essentially no-op</li>
+<li>CallInsts are handled by using LLVM to generate proper assembly
+CallSites</li>
+<li>BinaryOperators are obviously easy to handle</li>
+<li>Invoke Instructions are lowered to CallInsts (Essentially
+unsupported atm)</li>
+<li>Load/Stores are properly bitcasted</li>
+<li>Everything else is left as-is</li>
+</ul>
+<p>The arguments are passed as pointers and each op’s handling block is
+responsible for specializing itself to handle each variation of the
+arguments.</p>
+<h3 id="finding-candidate-instructions">Finding Candidate
+Instructions</h3>
+<p>Since our VM implementation is pretty dumb and doesn’t support all
+the instructions(yet), we need to find instruction sequences to patch
+and replace. This algorithm is pretty straightforward at the moment. Do
+note, however, that we need to run various lowering passes to make
+sure:</p>
+<ul>
+<li>PhiNodes are properly lowered</li>
+<li>Intrinsics are either stripped out or lowered into platform specific
+library calls</li>
+<li>ConstantExprs are properly resolved</li>
+<li>etc…</li>
+</ul>
+<p>The actual source code won’t be open-source but you should be able to
+craft yourself one after reading this.</p>
+<p>Zhang</p>
+
+    </div>
+
+    
+    
+    
+        
+
+  <div class="followme">
+    <p>Welcome to my other publishing channels</p>
+
+    <div class="social-list">
+
+        <div class="social-item">
+          <a target="_blank" class="social-link" href="https://twitter.com/NavilleZhang39">
+            <span class="icon">
+              <i class="fab fa-twitter"></i>
+            </span>
+
+            <span class="label">Twitter</span>
+          </a>
+        </div>
+
+        <div class="social-item">
+          <a target="_blank" class="social-link" href="https://t.me/NavilleZhang">
+            <span class="icon">
+              <i class="fab fa-telegram"></i>
+            </span>
+
+            <span class="label">Telegram</span>
+          </a>
+        </div>
+    </div>
+  </div>
+
+
+      <footer class="post-footer">
+          <div class="post-tags">
+              <a href="/tags/Security/" rel="tag"># Security</a>
+              <a href="/tags/Obfuscation/" rel="tag"># Obfuscation</a>
+          </div>
+
+        
+
+
+        
+    <div class="post-nav">
+      <div class="post-nav-item">
+    <a href="/2017/09/22/A-Short-Analysis-of-AdAppActive/" rel="prev" title="A Short Analysis of AdAppActive">
+      <i class="fa fa-chevron-left"></i> A Short Analysis of AdAppActive
+    </a></div>
+      <div class="post-nav-item">
+    <a href="/2018/12/01/de_obf_part1/" rel="next" title="de_obf Part1: Theory">
+      de_obf Part1: Theory <i class="fa fa-chevron-right"></i>
+    </a></div>
+    </div>
+      </footer>
+    
+  </article>
+  
+  
+  
+
+
+
+          </div>
+          
+
+<script>
+  window.addEventListener('tabs:register', () => {
+    let { activeClass } = CONFIG.comments;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      let activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      let commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script>
+
+        </div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc">
+          Table of Contents
+        </li>
+        <li class="sidebar-nav-overview">
+          Overview
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel">
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#current-implementations"><span class="nav-number">1.</span> <span class="nav-text">Current Implementations</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#assembly-interpreter"><span class="nav-number">1.1.</span> <span class="nav-text">Assembly Interpreter</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#llvm-ir-interpreter"><span class="nav-number">1.2.</span> <span class="nav-text">LLVM IR Interpreter</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#high-level-language-interpreter"><span class="nav-number">1.3.</span> <span class="nav-text">High-Level Language
+Interpreter</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#hikaris-implementation"><span class="nav-number">1.4.</span> <span class="nav-text">Hikari’s implementation</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#supporting-llvm-instructions"><span class="nav-number">1.4.1.</span> <span class="nav-text">Supporting LLVM Instructions</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#finding-candidate-instructions"><span class="nav-number">1.4.2.</span> <span class="nav-text">Finding Candidate
+Instructions</span></a></li></ol></li></ol></li></ol></div>
+      </div>
+      <!--/noindex-->
+
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+  <p class="site-author-name" itemprop="name">Naville</p>
+  <div class="site-description" itemprop="description"></div>
+</div>
+<div class="site-state-wrap motion-element">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/archives/">
+        
+          <span class="site-state-item-count">6</span>
+          <span class="site-state-item-name">posts</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-tags">
+        <span class="site-state-item-count">5</span>
+        <span class="site-state-item-name">tags</span>
+      </div>
+  </nav>
+</div>
+  <div class="links-of-author motion-element">
+      <span class="links-of-author-item">
+        <a href="https://github.com/Naville" title="GitHub → https:&#x2F;&#x2F;github.com&#x2F;Naville" rel="noopener" target="_blank"><i class="fab fa-github fa-fw"></i>GitHub</a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="https://twitter.com/NavilleZhang39" title="Twitter → https:&#x2F;&#x2F;twitter.com&#x2F;NavilleZhang39" rel="noopener" target="_blank"><i class="fab fa-twitter fa-fw"></i>Twitter</a>
+      </span>
+  </div>
+
+
+
+      </div>
+
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+
+        
+
+<div class="copyright">
+  
+  &copy; 
+  <span itemprop="copyrightYear">2022</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">Naville</span>
+</div>
+  <div class="powered-by">Powered by <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> & <a href="https://muse.theme-next.org/" class="theme-link" rel="noopener" target="_blank">NexT.Muse</a>
+  </div>
+
+        
+
+
+
+
+
+
+
+
+      </div>
+    </footer>
+  </div>
+
+  
+  <script src="/lib/anime.min.js"></script>
+  <script src="/lib/velocity/velocity.min.js"></script>
+  <script src="/lib/velocity/velocity.ui.min.js"></script>
+
+<script src="/js/utils.js"></script>
+
+<script src="/js/motion.js"></script>
+
+
+<script src="/js/schemes/muse.js"></script>
+
+
+<script src="/js/next-boot.js"></script>
+
+
+
+
+  
+
+
+
+
+  
+<script src="//cdn.jsdelivr.net/npm/algoliasearch@4/dist/algoliasearch-lite.umd.js"></script>
+<script src="//cdn.jsdelivr.net/npm/instantsearch.js@4/dist/instantsearch.production.min.js"></script>
+<script src="/js/algolia-search.js"></script>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+  
+
+  
+
+</body>
+</html>
